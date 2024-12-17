@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Result</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #f2f2f2;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 36px;
+            color: orange;
+        }
+
+        .summary-box {
+            background-color: #333;
+        }
+
+
+        .summary-box.computer-name h2 {
+            color: orange;
+            font-size: 18px;
+        }
+
+        h2 {
+            font-size: 16px;
+            margin: 5px 0;
+            width: 80%;
+        }
+
+        button {
+            background-color: orange;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #e65c00;
+        }
+
+        .button-container {
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Result</h1>
+    <div class="summary-box">
+        <p>{{ result }}</p>
+    </div>
+    <a href="{{ url_for('index') }}"><button>Back to Summary</button></a>
+</body>
+</html>

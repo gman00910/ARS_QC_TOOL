@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+config.json
+secrets.json
+api_keys.json
+venv/

@@ -1,0 +1,28 @@
+2024-11-27 22:33:28,425 - INFO - [flask_app.py:45] - Requesting admin privileges...
+2024-11-27 22:33:30,086 - INFO - [flask_app.py:201] - Exiting due to lack of admin privileges
+2024-11-27 22:33:30,605 - INFO - [flask_app.py:53] - Running with admin privileges
+2024-11-27 22:33:30,606 - INFO - [flask_app.py:197] - Starting Flask application
+2024-11-27 22:33:30,622 - INFO - [_internal.py:97] - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-11-27 22:33:30,622 - INFO - [_internal.py:97] - [33mPress CTRL+C to quit[0m
+2024-11-27 22:42:29,208 - INFO - [flask_app.py:45] - Requesting admin privileges...
+2024-11-27 22:42:31,110 - INFO - [flask_app.py:201] - Exiting due to lack of admin privileges
+2024-11-27 22:42:31,815 - INFO - [flask_app.py:53] - Running with admin privileges
+2024-11-27 22:42:31,815 - INFO - [flask_app.py:197] - Starting Flask application
+2024-11-27 22:42:31,836 - INFO - [_internal.py:97] - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-11-27 22:42:31,836 - INFO - [_internal.py:97] - [33mPress CTRL+C to quit[0m
+2024-11-27 22:43:39,299 - INFO - [flask_app.py:45] - Requesting admin privileges...
+2024-11-27 22:43:40,925 - INFO - [flask_app.py:201] - Exiting due to lack of admin privileges
+2024-11-27 22:43:41,493 - INFO - [flask_app.py:53] - Running with admin privileges
+2024-11-27 22:43:41,493 - INFO - [flask_app.py:197] - Starting Flask application
+2024-11-27 22:43:41,509 - INFO - [_internal.py:97] - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-11-27 22:43:41,509 - INFO - [_internal.py:97] - [33mPress CTRL+C to quit[0m
+2024-11-27 22:49:29,829 - INFO - [flask_app.py:45] - Requesting admin privileges...
+2024-11-27 22:49:32,074 - INFO - [flask_app.py:201] - Exiting due to lack of admin privileges
+2024-11-27 22:49:32,528 - INFO - [flask_app.py:53] - Running with admin privileges
+2024-11-27 22:49:32,528 - INFO - [flask_app.py:197] - Starting Flask application
+2024-11-27 22:49:32,549 - INFO - [_internal.py:97] - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-11-27 22:49:32,549 - INFO - [_internal.py:97] - [33mPress CTRL+C to quit[0m
