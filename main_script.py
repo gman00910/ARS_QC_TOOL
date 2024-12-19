@@ -964,3 +964,20 @@ def main():
 if __name__ == "__main__":
     main()
 
+#----------THIS IS WHAT PULL REQUEST DOES --------------
+#git add .
+#git commit -m "Your commit message"
+#git push origin your-branch-name
+
+#----------THIS IS WHAT PULL REQUEST DOES --------------
+# Switch to main/trunk branch
+#git checkout main  # or master, depending on your default branch name
+
+# Pull latest changes from main
+#git pull origin main
+
+# Merge your branch into main
+#git merge your-branch-name
+
+# Push changes to remote main
+#git push origin main

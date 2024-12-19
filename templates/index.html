@@ -328,8 +328,8 @@
     
         <div class="summary-text">
             <strong>Display Info:</strong>
-            {% for line in result.get('Display Info', '').split('\n') %}
             <div class="divider"></div>
+            {% for line in result.get('Display Info', '').split('\n') %}
                 {% if line.strip() %}
                     {% if line.startswith('Display ') %}
                         <div class="status-label display-header">{{ line }}</div>
