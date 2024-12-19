@@ -326,13 +326,12 @@
             <div class="status-label">{{ result.get('Windows Activation', 'N/A') }}</div>
         </div>
     
-        <div class="summary-text">
-            <strong>Display Info:</strong>
-            <div class="divider"></div>
+        <div class="summary-text">        
             {% for line in result.get('Display Info', '').split('\n') %}
                 {% if line.strip() %}
                     {% if line.startswith('Display ') %}
-                        <div class="status-label display-header">{{ line }}</div>
+                        <div class="divider"></div>
+                        <div class="status-label display-header" style="color: #ff6600;">{{ line }}</div>
                     {% elif line.startswith('      ') %}
                         <div class="status-label display-detail">{{ line }}</div>
                     {% else %}
@@ -460,9 +459,9 @@
 
         <div class="summary-box">
             <div class="version-box-title">Task Scheduler</div>
-            <div class="system-output" style="font-family: 'Courier New', Courier, monospace; font-size: 14px; white-space: pre; line-height: 1.2; text-align: center;">{% for task in result['Task Scheduler Status'] %}{% if ':' in task %}
-        <span style="color: #ff6600; font-size: 16px; font-weight: bold;">  {{ task }}</span>{% else %}
-            {{ task }}{% endif %}{% endfor %}
+            <div class="system-output" style="font-family: 'Courier New', Courier, monospace; font-size: 14px; white-space: pre; line-height: 1.2; text-align: center; margin: 0 auto; max-width: fit-content;">{% for task in result['Task Scheduler Status'] %}{% if ':' in task %}
+        <span style="color: #ff6600; font-size: 16px; font-weight: bold;">{{ task }}</span>{% else %}
+        {{ task }}{% endif %}{% endfor %}
             </div>
         </div>
 
