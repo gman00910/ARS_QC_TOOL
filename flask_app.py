@@ -9,6 +9,7 @@ from threading import Timer, Thread
 import main_script 
 import logging
 from logging.config import dictConfig
+import win32con
 
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
@@ -173,24 +174,27 @@ def open_command_prompt():
         batch_content += 'echo Press any key to close this window...\n'
         batch_content += 'pause >nul'
         
-        # Create temporary batch file
-        batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
-        with open(batch_file, 'w') as f:
-            f.write(batch_content)
+        try:
+            # Try user's home directory first
+            batch_file = os.path.join(os.path.expanduser('~'), 'shotover_summary.bat')
+            with open(batch_file, 'w') as f:
+                f.write(batch_content)
+        except:
+            # Fall back to current directory if home directory fails
+            batch_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'shotover_summary.bat')
+            with open(batch_file, 'w') as f:
+                f.write(batch_content)
         
-        # Configure startup info for maximized window
-        startup_info = subprocess.STARTUPINFO()
-        startup_info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startup_info.wShowWindow = subprocess.SW_MAXIMIZE
-        
-        # Run the batch file
-        subprocess.Popen(['cmd', '/c', 'start', '/MAX', batch_file], 
-                        startupinfo=startup_info,
-                        creationflags=subprocess.CREATE_NEW_CONSOLE)
+        # Simply use start command which handles maximizing automatically
+        subprocess.Popen(
+            ['cmd', '/c', 'start', '/MAX', batch_file],
+            creationflags=subprocess.CREATE_NEW_CONSOLE
+        )
                         
         return "", 204  # Return no content
         
     except Exception as e:
+        print(f"Error in open_command_prompt: {str(e)}")  # Debug print
         return str(e), 500
 
 @app.route('/Openshell')
