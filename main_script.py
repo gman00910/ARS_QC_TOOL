@@ -392,64 +392,81 @@ def change_time_zone(new_time_zone):
 
 #F*&^%&* FINDING VIB_LIB
 def run_viblib():
-    preset_paths = [
-        r"C:\maintenance\vib_lib\viblib_test.exe",
-        r"C:\ARS\vib_lib\viblib_test.exe",
-        r"C:\maintenance\testing\vib_production_test\viblib_test.exe",
-        r"C:\ion\ion_v4.4.39\viblib_test.exe",
-        r"C:\ARS\atom_tools\viblib\viblib_test.exe",
-        r"D:\maintenance\vib_lib\viblib_test.exe",
-        r"D:\ARS\vib_lib\viblib_test.exe",
-        r"D:\maintenance\testing\vib_production_test\viblib_test.exe",
-        r"D:\ion\ion_v4.4.39\viblib_test.exe",
-        r"D:\ARS\atom_tools\viblib\viblib_test.exe"]
-    
-    for path in preset_paths:
-        if os.path.exists(path):
-            try:
-                subprocess.run([path], check=True)
-                return f"viblib_test.exe executed successfully from {path}."
-            except subprocess.CalledProcessError as e:
-                print(f"Error executing viblib_test.exe: {str(e)}")  # Print error to command prompt
-                return "Error executing viblib_test.exe. Please check the command prompt for details."
-    
-    return "viblib_test.exe not found in any of the specified paths."
-
-
-def run_ars():
-    preset_paths = [
-        r"D:\ARS\bin\loader\runloader.cmd",
-        r"C:\ARS\bin\loader\runloader.cmd",
-        r"E:\ARS\bin\loader\runloader.cmd"
-        r"D:\ARS\loader\runloader.cmd",
-        r"C:\ARS\loader\runloader.cmd",
-        r"E:\ARS\loader\runloader.cmd",
-        r"D:\ARS\bin\ars.exe",
-        r"C:\ARS\bin\ars.exe",
-        r"E:\ARS\bin\ars.exe"]   
-    
-    for path in preset_paths:
-        if os.path.exists(path):
-            try:
-                # Get the directory containing runloader.cmd
-                start_dir = os.path.dirname(path)
+    try:
+        preset_paths = [
+            r"C:\maintenance\vib_lib\viblib_test.exe",
+            r"C:\ARS\vib_lib\viblib_test.exe",
+            r"C:\maintenance\testing\vib_production_test\viblib_test.exe",
+            r"C:\ion\ion_v4.4.39\viblib_test.exe",
+            r"C:\ARS\atom_tools\viblib\viblib_test.exe",
+            r"D:\maintenance\vib_lib\viblib_test.exe",
+            r"D:\ARS\vib_lib\viblib_test.exe",
+            r"D:\maintenance\testing\vib_production_test\viblib_test.exe",
+            r"D:\ion\ion_v4.4.39\viblib_test.exe",
+            r"D:\ARS\atom_tools\viblib\viblib_test.exe"
+        ]
+        
+        for path in preset_paths:
+            if os.path.exists(path):
+                subprocess.Popen([path], creationflags=subprocess.CREATE_NEW_CONSOLE)
+                return jsonify({"success": True})
                 
-                # Run with specific working directory and arguments
+        return jsonify({"success": False, "error": "VibLib executable not found"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+ 
+def run_ars():
+    try:
+        cmd_paths = [
+            r"D:\ARS\bin\loader\runloader.cmd",
+            r"C:\ARS\bin\loader\runloader.cmd",
+            r"E:\ARS\bin\loader\runloader.cmd",
+            r"D:\ARS\loader\runloader.cmd",
+            r"C:\ARS\loader\runloader.cmd",
+            r"E:\ARS\loader\runloader.cmd"
+        ]
+        
+        exe_paths = [
+            r"D:\ARS\bin\ars.exe",
+            r"C:\ARS\bin\ars.exe",
+            r"D:\ARS\ars.exe",
+            r"C:\ARS\ars.exe"
+        ]
+        
+        # Try cmd first
+        for path in cmd_paths:
+            if os.path.exists(path):
+                start_dir = os.path.dirname(path)
                 subprocess.Popen(
-                    [path, "-d"],
+                    [path],
                     cwd=start_dir,
-                    shell=True,  # Required for .cmd files
-                    creationflags=subprocess.CREATE_NEW_CONSOLE  # Create new window
+                    shell=True,
+                    creationflags=subprocess.CREATE_NEW_CONSOLE
                 )
-                return f"ARS Loader executed successfully from {path}."
-            except subprocess.CalledProcessError as e:
-                print(f"Error executing ARS Loader: {str(e)}")
-                return "Error executing ARS Loader. Please check the command prompt for details."
-            except Exception as e:
-                print(f"Unexpected error running ARS Loader: {str(e)}")
-                return f"Unexpected error: {str(e)}"
+                return jsonify({"success": True, "message": "ARS launched successfully"})
+                
+        # Fall back to exe
+        for path in exe_paths:
+            if os.path.exists(path):
+                subprocess.Popen(
+                    [path],
+                    creationflags=subprocess.CREATE_NEW_CONSOLE
+                )
+                return jsonify({"success": True, "message": "ARS launched successfully"})
+                
+        return jsonify({
+            "success": False, 
+            "message": "ARS executable not found in any of the expected locations"
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False, 
+            "message": f"Error launching ARS: {str(e)}"
+        })
     
-    return "ARS Loader (runloader.cmd) not found in any of the specified paths."
 
 def get_com_ports():
     try:
