@@ -307,11 +307,13 @@
     <div class="summary-box">
         <div class="version-box-title">General Info</div>
         <div class="summary-text">
+            <div class="divider"></div>
             <strong>Computer Name:</strong>
             <div class="status-label">{{ result.get('Computer Name', 'N/A') }}</div>
         </div>
     
         <div class="summary-text">
+            <div class="divider"></div>
             <strong>Time Zone:</strong>
             <div class="status-label" style="text-align: center;">
                 {{ result.get('Time Zone', 'N/A') }}
@@ -322,6 +324,7 @@
         </div>
     
         <div class="summary-text">
+            <div class="divider"></div>
             <strong>Windows Activation:</strong>
             <div class="status-label">{{ result.get('Windows Activation', 'N/A') }}</div>
         </div>
@@ -459,9 +462,10 @@
 
         <div class="summary-box">
             <div class="version-box-title">Task Scheduler</div>
-            <div class="system-output" style="font-family: 'Courier New', Courier, monospace; font-size: 14px; white-space: pre; line-height: 1.2; text-align: center; margin: 0 auto; max-width: fit-content;">{% for task in result['Task Scheduler Status'] %}{% if ':' in task %}
-        <span style="color: #ff6600; font-size: 16px; font-weight: bold;">{{ task }}</span>{% else %}
-        {{ task }}{% endif %}{% endfor %}
+            <div style="display: flex; justify-content: center;">
+                <div class="system-output" style="font-family: 'Courier New', Courier, monospace; font-size: 16px; white-space: pre; line-height: 1.2; text-align: left; display: inline-block;">{% for task in result['Task Scheduler Status'] %}{% if ':' in task %}
+        <span style="color: #ff6600; font-size: 16px; font-weight: bold;">{{ task }}</span>{% else %}{{ task }}{% endif %}
+        {% endfor %}</div>
             </div>
         </div>
 

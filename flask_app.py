@@ -162,20 +162,36 @@ def change_ip():
 @app.route('/open_command_prompt')
 def open_command_prompt():
     try:
-       
-        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
-        batch_content = f'@echo off\npython "{script_path}"\npause'
+        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'main_script.py'))
         
-       
-        batch_file_path = os.path.join(os.path.expanduser('~'), 'run_summary.bat')
-        with open(batch_file_path, 'w') as f:
+        # Create batch content with formatting
+        batch_content = '@echo off\n'
+        batch_content += 'title SHOTOVER Systems - Drive Summary Details\n'
+        batch_content += 'color 0A\n'  # Black background (0) with Green text (A)
+        batch_content += f'python "{script_path}"\n'
+        batch_content += 'echo.\n'
+        batch_content += 'echo Press any key to close this window...\n'
+        batch_content += 'pause >nul'
+        
+        # Create temporary batch file
+        batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
+        with open(batch_file, 'w') as f:
             f.write(batch_content)
         
-       
-        subprocess.Popen(['cmd', '/k', batch_file_path], shell=True)
-        return "Command prompt opened successfully"
+        # Configure startup info for maximized window
+        startup_info = subprocess.STARTUPINFO()
+        startup_info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startup_info.wShowWindow = subprocess.SW_MAXIMIZE
+        
+        # Run the batch file
+        subprocess.Popen(['cmd', '/c', 'start', '/MAX', batch_file], 
+                        startupinfo=startup_info,
+                        creationflags=subprocess.CREATE_NEW_CONSOLE)
+                        
+        return "", 204  # Return no content
+        
     except Exception as e:
-        return f"Error opening command prompt: {str(e)}"
+        return str(e), 500
 
 @app.route('/Openshell')
 def Openshell():
