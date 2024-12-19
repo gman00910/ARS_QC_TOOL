@@ -328,8 +328,8 @@
     
         <div class="summary-text">
             <strong>Display Info:</strong>
-            {% for line in result.get('Display Info', '').split('\n') %}
             <div class="divider"></div>
+            {% for line in result.get('Display Info', '').split('\n') %}
                 {% if line.strip() %}
                     {% if line.startswith('Display ') %}
                         <div class="status-label display-header">{{ line }}</div>
@@ -481,7 +481,7 @@
         </div>
     </div>
     <script>
-        function launchProgram(url) {
+        function launchProgram(url, programName) {
             fetch(url, {
                 method: 'POST',
                 headers: {
@@ -491,11 +491,11 @@
             .then(response => response.json())
             .then(data => {
                 if (!data.success) {
-                    console.error('Failed to launch program:', data.error);
+                    alert(`${data.message}`);
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                alert(`Error launching ${programName}: ${error}`);
             });
         }
     </script>
