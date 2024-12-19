@@ -423,7 +423,10 @@ def run_ars():
         r"E:\ARS\bin\loader\runloader.cmd"
         r"D:\ARS\loader\runloader.cmd",
         r"C:\ARS\loader\runloader.cmd",
-        r"E:\ARS\loader\runloader.cmd"]   
+        r"E:\ARS\loader\runloader.cmd",
+        r"D:\ARS\bin\ars.exe",
+        r"C:\ARS\bin\ars.exe",
+        r"E:\ARS\bin\ars.exe"]   
     
     for path in preset_paths:
         if os.path.exists(path):

@@ -266,8 +266,8 @@
     <div class="divider"></div>
     <div class="summary-text" style="text-align: center; margin-top: 20px;">
         <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
-            <a href="{{ url_for('run_ars_route') }}" class="summary-button">Run ARS</a>
-            <a href="{{ url_for('run_viblib_route') }}" class="summary-button">Run viblib_test.exe</a>
+            <button onclick="launchProgram('/run_ars')" class="summary-button">Run ARS</button>
+            <button onclick="launchProgram('/run_viblib')" class="summary-button">Run viblib_test.exe</button>
             <a href="{{ url_for('open_command_prompt') }}" class="summary-button">Open Command Prompt</a>
             <a href="{{ url_for('Openshell') }}" class="summary-button">Open Shell</a>
             <a href="{{ url_for('printt') }}" class="summary-button">Print</a>
@@ -480,5 +480,24 @@
         </div>
         </div>
     </div>
+    <script>
+        function launchProgram(url) {
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('Failed to launch program:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+    </script>
 </body>
 </html>

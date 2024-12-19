@@ -117,10 +117,31 @@ def change_setting(setting):
         
     return render_template('result.html', result=result)
 
-@app.route('/run_viblib')
+@app.route('/run_viblib', methods=['POST'])
 def run_viblib_route():
-    result = main_script.run_viblib()
-    return render_template('result.html', result=result)
+    try:
+        preset_paths = [
+            r"C:\maintenance\vib_lib\viblib_test.exe",
+            r"C:\ARS\vib_lib\viblib_test.exe",
+            r"C:\maintenance\testing\vib_production_test\viblib_test.exe",
+            r"C:\ion\ion_v4.4.39\viblib_test.exe",
+            r"C:\ARS\atom_tools\viblib\viblib_test.exe",
+            r"D:\maintenance\vib_lib\viblib_test.exe",
+            r"D:\ARS\vib_lib\viblib_test.exe",
+            r"D:\maintenance\testing\vib_production_test\viblib_test.exe",
+            r"D:\ion\ion_v4.4.39\viblib_test.exe",
+            r"D:\ARS\atom_tools\viblib\viblib_test.exe"
+        ]
+        
+        for path in preset_paths:
+            if os.path.exists(path):
+                subprocess.Popen([path], creationflags=subprocess.CREATE_NEW_CONSOLE)
+                return jsonify({"success": True})
+                
+        return jsonify({"success": False, "error": "VibLib executable not found"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route('/change_ip', methods=['GET', 'POST'])
 def change_ip():
@@ -237,11 +258,53 @@ def printt():
     except Exception as e:
         return render_template('result.html', result=f"Error printing: {str(e)}")
     
-@app.route('/run_ars')
+@app.route('/run_ars', methods=['POST'])
 def run_ars_route():
-    result = main_script.run_ars()
-    return redirect('/')  # Redirect back to home page
-
+    try:
+        # Search for runloader.cmd first
+        cmd_paths = [
+            r"D:\ARS\bin\loader\runloader.cmd",
+            r"C:\ARS\bin\loader\runloader.cmd",
+            r"E:\ARS\bin\loader\runloader.cmd",
+            r"D:\ARS\loader\runloader.cmd",
+            r"C:\ARS\loader\runloader.cmd",
+            r"E:\ARS\loader\runloader.cmd"
+        ]
+        
+        # Search for ars.exe as fallback
+        exe_paths = [
+            r"D:\ARS\bin\ars.exe",
+            r"C:\ARS\bin\ars.exe",
+            r"D:\ARS\ars.exe",
+            r"C:\ARS\ars.exe"
+        ]
+        
+        # Try cmd first
+        for path in cmd_paths:
+            if os.path.exists(path):
+                start_dir = os.path.dirname(path)
+                subprocess.Popen(
+                    [path],
+                    cwd=start_dir,
+                    shell=True,
+                    creationflags=subprocess.CREATE_NEW_CONSOLE
+                )
+                return jsonify({"success": True})
+                
+        # Fall back to exe if cmd not found
+        for path in exe_paths:
+            if os.path.exists(path):
+                subprocess.Popen(
+                    [path],
+                    creationflags=subprocess.CREATE_NEW_CONSOLE
+                )
+                return jsonify({"success": True})
+                
+        return jsonify({"success": False, "error": "ARS executable not found"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+    
 def open_browser():
     webbrowser.open('http://127.0.0.1:5000')
 
