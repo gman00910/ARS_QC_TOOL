@@ -11,6 +11,8 @@ import logging
 from logging.config import dictConfig
 import win32gui
 import win32con
+import sys
+import ctypes
 
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
@@ -22,21 +24,31 @@ app = Flask(__name__,
            static_folder=resource_path('static'),
            template_folder=resource_path('templates'))
 
-def run_as_admin():
+def is_admin():
     try:
-        if ctypes.windll.shell32.IsUserAnAdmin() == 0:
-            print("Requesting admin privileges...")
-            script = os.path.abspath(sys.argv[0])
-            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, script, None, 1)
-            return False
-        return True
-    except Exception as e:
-        print(f"Error requesting admin privileges: {str(e)}")
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
         return False
+
+if not is_admin():
+    if sys.platform == 'win32':
+        script = os.path.abspath(sys.argv[0])
+        params = ' '.join([script] + sys.argv[1:])
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
+        sys.exit(0)
     
 def minimize_console():
-    console_window = win32gui.GetForegroundWindow()
-    win32gui.ShowWindow(console_window, win32con.SW_MINIMIZE)
+    def enum_windows(hwnd, windows):
+        if win32gui.IsWindowVisible(hwnd):
+            window_title = win32gui.GetWindowText(hwnd)
+            if "python.exe" in window_title.lower():
+                windows.append(hwnd)
+    
+    windows = []
+    win32gui.EnumWindows(enum_windows, windows)
+    
+    for hwnd in windows:
+        win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
     
 @app.route('/')
 def index():
@@ -168,34 +180,25 @@ def change_ip():
 @app.route('/open_command_prompt')
 def open_command_prompt():
     try:
-        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'main_script.py'))
+        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
         
         # Create batch content with formatting
         batch_content = '@echo off\n'
         batch_content += 'title SHOTOVER Systems - Drive Summary Details\n'
-        batch_content += 'color 0A\n'  # Black background (0) with Green text (A)
+        batch_content += 'color 0A\n'
         batch_content += f'python "{script_path}"\n'
         batch_content += 'echo.\n'
-        batch_content += 'echo Press any key to close this window...\n'
         batch_content += 'pause >nul'
         
-        # Create temporary batch file
         batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
         with open(batch_file, 'w') as f:
             f.write(batch_content)
         
-        # Configure startup info for maximized window
-        startup_info = subprocess.STARTUPINFO()
-        startup_info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startup_info.wShowWindow = subprocess.SW_MAXIMIZE
-        
-        # Run the batch file
-        subprocess.Popen(['cmd', '/c', 'start', '/MAX', batch_file], 
-                        startupinfo=startup_info,
+        # Remove the /MAX parameter and use normal window
+        subprocess.Popen(['cmd', '/c', 'start', batch_file], 
                         creationflags=subprocess.CREATE_NEW_CONSOLE)
-                        
-        return "", 204  # Return no content
         
+        return "", 204
     except Exception as e:
         return str(e), 500
 
@@ -328,10 +331,17 @@ def run_ars_route():
         return jsonify({"success": False, "error": str(e)})
     
 def open_browser():
-    webbrowser.open('http://127.0.0.1:5000')
+    # Chrome command to open in maximized state
+    chrome_path = 'C:/Program Files/Google/Chrome/Application/chrome.exe %s --start-maximized'
+    try:
+        browser = webbrowser.get(chrome_path)
+        browser.open('http://127.0.0.1:5000', new=2)
+    except:
+        # Fallback to default browser if Chrome isn't found
+        webbrowser.open('http://127.0.0.1:5000')
 
 if __name__ == '__main__':
-    if run_as_admin():
+    if is_admin():
         Timer(0.3, open_browser).start()
-        Timer(0.5, minimize_console).start()  
+        Timer(0.5, minimize_console).start()
         app.run(debug=True, host='127.0.0.1', port=5000, use_reloader=False)
