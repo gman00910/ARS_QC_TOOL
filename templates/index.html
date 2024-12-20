@@ -533,20 +533,19 @@
                 </div>
                 <div class="divider"></div>
             </div>
-            <div class="summary-box">
     
-    
-    <div class="version-box-title">Task Scheduler</div>
-                <div style="display: flex; justify-content: center; margin-left: 0;">
-                    <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 18px;">{%- for task in result['Task Scheduler Status'] -%}
-            {%- if ':' in task -%}
-            <span style="color: #ff6600; font-weight: bold;">{{ task }}</span>
-            {%- else -%}
-            {{ task }}
-            {%- endif -%}
-            {{ '\n' if not loop.last }}{%- endfor -%}</pre>
-                </div>
-            </div>
+    <div class="summary-box">
+        <div class="version-box-title">Task Scheduler</div>
+        <div style="display: flex; justify-content: center; margin-left: 0;">
+            <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 18px;">{%- for task in result['Task Scheduler Status'] -%}
+    {%- if ':' in task -%}
+    <span style="color: #ff6600; font-weight: bold;">{{ task }}</span>
+    {%- else -%}
+    {{ task }}
+    {%- endif -%}
+    {{ '\n' if not loop.last }}{%- endfor -%}</pre>
+        </div>
+    </div>
 
 
 
