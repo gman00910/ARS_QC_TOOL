@@ -256,6 +256,60 @@
             color: #f2f2f2;
             font-size: 14px;
         }
+        .summary-box {
+            border: 2px solid #ff6600;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            width: 100%;
+            max-width: 800px;
+            box-sizing: border-box;
+        }
+
+        .version-box-title {
+            color: #ff6600;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .content-wrapper {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .system-output {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            white-space: pre;
+            text-align: left;
+            min-width: 0;
+            width: 100%;
+            padding: 0 15px;
+        }
+
+        .task-header {
+            color: #ff6600;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .task-item {
+            padding-left: 20px;
+            margin: 2px 0;
+        }
+
+        .com-ports-output {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            white-space: pre;
+            text-align: left;
+            width: 100%;
+            padding: 0 15px;
+        }
     </style>
 </head>
 <body>
@@ -307,7 +361,6 @@
     <div class="summary-box">
         <div class="version-box-title">General Info</div>
         <div class="summary-text">
-            <div class="divider"></div>
             <strong>Computer Name:</strong>
             <div class="status-label">{{ result.get('Computer Name', 'N/A') }}</div>
         </div>
@@ -354,24 +407,28 @@
             </div>
         </div>
         <div class="summary-text" style="margin-bottom: 30px;">
+            <div class="divider"></div>
             <strong>ARS Shortcut: </strong>
             <div class="status-label">
             {{ result.get('ARS Shortcut', 'N/A') }}
             </div>
         </div>
         <div class="summary-text" style="margin-bottom: 30px;">
+            <div class="divider"></div>
             <strong>Boot Drive Version: </strong>
             <div class="status-label">
             {{ result.get('Boot Drive Version', 'N/A') }}
             </div>
         </div>
         <div class="summary-text" style="margin-bottom: 30px;">
+            <div class="divider"></div>
             <strong>VIB Version: </strong>
             <div class="status-label">
             {{ result.get('VIB Version', 'N/A') }}
             </div>
         </div>
         <div class="summary-text" style="margin-bottom: 30px;">
+            <div class="divider"></div>
             <strong>FX3 Version: </strong>
             <div class="status-label">
             {{ result.get('FX3 Version', 'N/A') }}
@@ -460,7 +517,7 @@
                 </div>
             </div>
 
-        <div class="summary-box">
+        <!-- <div class="summary-box">
             <div class="version-box-title">Task Scheduler</div>
             <div style="display: flex; justify-content: center;">
                 <div class="system-output" style="font-family: 'Courier New', Courier, monospace; font-size: 16px; white-space: pre; line-height: 1.2; text-align: left; display: inline-block;">{% for task in result['Task Scheduler Status'] %}{% if ':' in task %}
@@ -481,6 +538,31 @@
                 {% endif %}
             </div>
         </div>
+        </div>
+    </div> -->
+    <div class="summary-box">
+        <div class="version-box-title">Task Scheduler</div>
+        <div class="content-wrapper">
+            <div class="system-output">
+                {% for task in result['Task Scheduler Status'] %}
+                    {% if ':' in task %}
+                        <div class="task-header">{{ task }}</div>
+                    {% else %}
+                        <div class="task-item">{{ task }}</div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="summary-box">
+        <div class="version-box-title">COM Ports</div>
+        <div class="content-wrapper">
+            {% if result.get('COM Ports') %}
+                <div class="com-ports-output">{{ result['COM Ports'] }}</div>
+            {% else %}
+                <div>No COM ports data available</div>
+            {% endif %}
         </div>
     </div>
     <script>

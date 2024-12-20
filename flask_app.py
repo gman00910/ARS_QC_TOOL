@@ -3,12 +3,14 @@ import ctypes
 import subprocess
 import sys
 import os 
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 import webbrowser
 from threading import Timer, Thread
 import main_script 
 import logging
 from logging.config import dictConfig
+import win32gui
+import win32con
 
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
@@ -31,6 +33,10 @@ def run_as_admin():
     except Exception as e:
         print(f"Error requesting admin privileges: {str(e)}")
         return False
+    
+def minimize_console():
+    console_window = win32gui.GetForegroundWindow()
+    win32gui.ShowWindow(console_window, win32con.SW_MINIMIZE)
     
 @app.route('/')
 def index():
@@ -327,4 +333,5 @@ def open_browser():
 if __name__ == '__main__':
     if run_as_admin():
         Timer(0.3, open_browser).start()
+        Timer(0.5, minimize_console).start()  
         app.run(debug=True, host='127.0.0.1', port=5000, use_reloader=False)
