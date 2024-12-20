@@ -536,15 +536,15 @@
     <div class="summary-box">
         <div class="version-box-title">Task Scheduler</div>
         <div style="display: flex; justify-content: flex-start; margin-left: 20px;">
-            <div class="system-output" style="font-family: 'Courier New', Courier, monospace; font-size: 18px; white-space: pre; line-height: 1.2; text-align: left;">
+            <div class="system-output" style="font-family: 'Courier New', Courier, monospace; font-size: 18px; white-space: pre-wrap; line-height: 1.0; text-align: left;">
     {% for task in result['Task Scheduler Status'] %}
     {% if ':' in task %}
     <span style="color: #ff6600; font-size: 16px; font-weight: bold;">{{ task }}</span>
-    {% else %}
+        {%- else -%}
     {{ task }}
-    {% endif %}
-    {% if not loop.last %}
-    <br>
+        {%- endif -%}
+    {%- if not loop.last -%}
+    {{ '\n' }}
     {% endif %}
     {% endfor %}
             </div>
