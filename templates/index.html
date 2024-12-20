@@ -245,17 +245,82 @@
             margin-bottom: 0.5rem;
             font-size: 24px;
         }
-        .system-output {
-            font-family: 'Courier New', Courier, monospace;
-            white-space: pre;
-            margin: 0;
-            padding: 10px;
-            line-height: 1.4;
-            background: transparent;
-            border: none;
-            color: #f2f2f2;
-            font-size: 14px;
+        .toast-notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 5px;
+            border-left: 5px solid #ff6600;
+            display: none;
+            animation: slideIn 0.5s, fadeOut 0.5s 2.5s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
         }
+
+        @keyframes slideIn {
+            from {transform: translateX(100%)}
+            to {transform: translateX(0)}
+        }
+
+        @keyframes fadeOut {
+            from {opacity: 1}
+            to {opacity: 0}
+        }
+        </style>
+
+        <!-- Add this before closing body tag -->
+        <div id="toast" class="toast-notification"></div>
+
+        <script>
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.display = 'block';
+            
+            // Remove old animation classes
+            toast.style.animation = 'none';
+            toast.offsetHeight; // Trigger reflow
+            toast.style.animation = 'slideIn 0.5s, fadeOut 0.5s 2.5s';
+            
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        function launchProgram(url) {
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    showToast(`Error: ${data.error || 'Program not found'}`);
+                }
+            })
+            .catch(error => {
+                showToast('Error launching program');
+                console.error('Error:', error);
+            });
+        }
+        window.onload = function() {
+            window.moveTo(0, 0);
+            window.resizeTo(screen.availWidth, screen.availHeight);
+            
+            // For modern browsers that support the Screen API
+            if (window.screen && window.screen.requestFullscreen) {
+                document.documentElement.requestFullscreen()
+                    .catch((err) => {
+                        console.log("Error attempting to fullscreen:", err);
+                    });
+            }
+        };
+        </script>
     </style>
 </head>
 <body>
@@ -353,24 +418,28 @@
             </div>
         </div>
         <div class="summary-text" style="margin-bottom: 30px;">
+            <div class="divider"></div>
             <strong>ARS Shortcut: </strong>
             <div class="status-label">
             {{ result.get('ARS Shortcut', 'N/A') }}
             </div>
         </div>
         <div class="summary-text" style="margin-bottom: 30px;">
+            <div class="divider"></div>
             <strong>Boot Drive Version: </strong>
             <div class="status-label">
             {{ result.get('Boot Drive Version', 'N/A') }}
             </div>
         </div>
         <div class="summary-text" style="margin-bottom: 30px;">
+            <div class="divider"></div>
             <strong>VIB Version: </strong>
             <div class="status-label">
             {{ result.get('VIB Version', 'N/A') }}
             </div>
         </div>
         <div class="summary-text" style="margin-bottom: 30px;">
+            <div class="divider"></div>
             <strong>FX3 Version: </strong>
             <div class="status-label">
             {{ result.get('FX3 Version', 'N/A') }}
@@ -393,6 +462,7 @@
                 {% endif %}
             </div>
             <div class="summary-text" style="margin-bottom: 30px;">
+                <div class="divider"></div>
                 <strong>Windows Defender Status:</strong>
                 {% if result.get('Windows Defender Status') is mapping %}
                     {% for key, value in result['Windows Defender Status'].items() %}
@@ -405,6 +475,7 @@
                 {% endif %}
             </div>
             <div class="summary-text" style="margin-bottom: 30px;">
+                <div class="divider"></div>
                 <strong>Firewall Status:</strong>
                 {% if result.get('Firewall Status') is mapping %}
                     {% for profile, status in result['Firewall Status'].items() %}
@@ -417,6 +488,7 @@
                 {% endif %}
             </div>
             <div class="summary-text" style="margin-bottom: 30px;">
+                <div class="divider"></div>
                 <strong>Defrag Status:</strong>
                 {% if result.get('Defrag Status') is mapping %}
                     <div class="status-label">
@@ -430,6 +502,7 @@
                 {% endif %}
             </div>
             <div class="summary-text" style="margin-bottom: 30px;">
+                <div class="divider"></div>
                 <strong>Drive Health:</strong>
                 <div style="margin-top: 20px;">
                     {% if result.get('Drive Health') is mapping %}
@@ -451,6 +524,7 @@
                 </div>
             </div>
             <div class="summary-text" style="margin-bottom: 30px;">
+                <div class="divider"></div>
                 <strong>Windows Update:</strong>
                 <div class="status-label">
                     <span style="color: {% if result['Windows Update'] == 'Enabled' %}#00ff00{% else %}#ff0000{% endif %}">
@@ -459,7 +533,7 @@
                 </div>
             </div>
 
-        <div class="summary-box">
+        <!-- <div class="summary-box">
             <div class="version-box-title">Task Scheduler</div>
             <div style="display: flex; justify-content: center;">
                 <div class="system-output" style="font-family: 'Courier New', Courier, monospace; font-size: 16px; white-space: pre; line-height: 1.2; text-align: left; display: inline-block;">{% for task in result['Task Scheduler Status'] %}{% if ':' in task %}
@@ -480,6 +554,25 @@
                 {% endif %}
             </div>
         </div>
+        </div>
+    </div> -->
+    <div class="summary-box">
+        <div class="version-box-title">Task Scheduler</div>
+        <div style="display: flex; justify-content: flex-start; margin-left: 20px;">
+            <div class="system-output" style="font-family: 'Courier New', Courier, monospace; font-size: 16px; white-space: pre; line-height: 1.2; text-align: left;">{% for task in result['Task Scheduler Status'] %}{% if ':' in task %}
+    <span style="color: #ff6600; font-size: 16px; font-weight: bold;">{{ task }}</span>{% else %}{{ task }}{% endif %}
+    {% endfor %}</div>
+        </div>
+    </div>
+    
+    <div class="summary-box">
+        <div class="version-box-title">COM Ports</div>
+        <div style="display: flex; justify-content: flex-start; margin-left: 20px;">
+            {% if result.get('COM Ports') %}
+                <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 14px;">{{ result['COM Ports'] }}</pre>
+            {% else %}
+                <div>No COM ports data available</div>
+            {% endif %}
         </div>
     </div>
     <script>

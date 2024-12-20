@@ -584,11 +584,10 @@ def check_task_scheduler_status():
     except Exception as e:
         print(f"Debug - Error details: {str(e)}")
         return ["Error retrieving scheduled tasks"]
-
 def format_task_scheduler_for_web(tasks_data):
     if not tasks_data:
         return ["No task scheduler data available"]
-        
+    
     try:
         formatted_tasks = []
         
@@ -603,10 +602,19 @@ def format_task_scheduler_for_web(tasks_data):
             
             # Format headers (items with "Tasks:")
             if "Tasks:" in item:
-                formatted_tasks.append(f"  {item.strip()}")
+                formatted_tasks.append(f"{item.strip()}")
             else:
-                # Format regular items with additional indentation
-                formatted_tasks.append(f"   {item.strip()}")
+                # Check if it's a status line (contains 3 (Enabled))
+                if "(Enabled)" in item:
+                    # Split task name and status
+                    parts = item.split("3 (Enabled)")
+                    task_name = parts[0].strip()
+                    # Pad with spaces to align status
+                    formatted_tasks.append(f"    {task_name:<40} 3 (Enabled)")
+                elif "No Sledgehammer tasks found" in item:
+                    formatted_tasks.append(f"    {item.strip()}")
+                else:
+                    formatted_tasks.append(f"    {item.strip()}")
         
         return formatted_tasks
         
@@ -951,6 +959,26 @@ def print_summary():
         com_ports = get_com_ports()
         print(com_ports)
 
+        print(f"{Fore.CYAN}")  # Set color to cyan for the art
+        print("       ____    _    _    ___    _____     ___   __     __  _____   ____   ")
+        print("      / ___|  | |  | |  / _ \  |_   _|   / _ \  \ \   / / | ____| |  _ \  ")
+        print("      \___ \  | |__| | | | | |   | |    | | | |  \ \ / /  |  _|   | |_) | ")
+        print("       ___) | |  __  | | |_| |   | |    | |_| |   \ V /   | |___  |  _ <  ")
+        print("      |____/  |_|  |_|  \___/    |_|     \___/     \_/    |_____| |_| \_\ ")
+        print("\n")
+        print("                         ///////////           ///////////           ")
+        print("                       //////////////       ////////////////         ")
+        print("                         /////////               ////////            ")
+        print("\n")
+        print("              ////                                             //// ")
+        print("                ////                                        ////    ")
+        print("                  ////                                   ////       ")
+        print("                     ////                             ////          ")
+        print("                        ////                       ////             ")
+        print("                            ////               ////                 ")
+        print("                               ////////////////                     ")
+        print(f"{Style.RESET_ALL}")  # Reset color
+        print("\n")
 
     except Exception as e:
         print(f"\n{Fore.RED}Error during system check: {str(e)}{Style.RESET_ALL}")
