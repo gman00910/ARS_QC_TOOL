@@ -503,10 +503,8 @@ def computer_metrics():
             'RAM': 'Error',
             'Available Memory': 'Error'
         }
-
 def check_task_scheduler_status():
     try:
-        # Modify the PowerShell command to use single quotes and proper escaping
         ps_command = r'''
         $tasks = @{
             'Root' = Get-ScheduledTask | Where-Object { $_.TaskPath -eq '\' };
@@ -535,55 +533,45 @@ def check_task_scheduler_status():
             data = json.loads(result.stdout)
             formatted_tasks = []
             
+            def format_task_line(name, state):
+                # Add consistent indentation for task lines
+                if len(name) > 37:
+                    name = name[:37] + "..."
+                return f"    {name:<40}{state}"  # Added 4 spaces indentation
+
+            formatted_tasks = []
+            
             # Root tasks
-            if 'Root' in data:
-                formatted_tasks.append(f"{Fore.CYAN}{Style.BRIGHT}Startup Tasks:{Style.RESET_ALL}")
-                if isinstance(data['Root'], list):
-                    for task in data['Root']:
-                        name = task['Name'][:25] + "..." if len(task['Name']) > 30 else task['Name']
-                        formatted_tasks.append(
-                            f"{name:<45}{task['State']}"
-                        )
-                formatted_tasks.append("")
+            formatted_tasks.append("Startup Tasks:")# Single blank line after header
+            if 'Root' in data and isinstance(data['Root'], list):
+                for task in sorted(data['Root'], key=lambda x: x['Name']):
+                    formatted_tasks.append(format_task_line(task['Name'], task['State']))
             
             # Sledgehammer tasks
-            formatted_tasks.append(f"{Fore.CYAN}{Style.BRIGHT}Sledgehammer Tasks:{Style.RESET_ALL}")
+            formatted_tasks.append("Sledgehammer Tasks:") # Single blank line after header
             if not data.get('Sledgehammer') or (isinstance(data['Sledgehammer'], dict) and not data['Sledgehammer']):
-                formatted_tasks.append("No Sledgehammer tasks found")
-                formatted_tasks.append("")
-            
-            # Windows Update tasks
+                formatted_tasks.append("    No Sledgehammer tasks found")
+
+            formatted_tasks.append("Windows Update:")  # No indentation for header
             if 'WindowsUpdate' in data:
-                formatted_tasks.append(f"{Fore.CYAN}{Style.BRIGHT}Windows Update:{Style.RESET_ALL}")
-                 
                 windows_update_tasks = data['WindowsUpdate']
                 if not isinstance(windows_update_tasks, list):
                     windows_update_tasks = [windows_update_tasks]
-                
-                # Sort tasks by name
-                sorted_tasks = sorted(windows_update_tasks, key=lambda x: x['Name'])
-                for task in sorted_tasks:
-                    name = task['Name'][:22] + "..." if len(task['Name']) > 25 else task['Name']
-                    formatted_tasks.append(
-                        f"{name:<45}{task['State']}"
-                    )
-                formatted_tasks.append("")
-
-            # Defender tasks
+                for task in sorted(windows_update_tasks, key=lambda x: x['Name']):
+                    formatted_tasks.append(format_task_line(task['Name'], task['State']))
+           
+            formatted_tasks.append("Defender:")  # No indentation for header
             if 'Defender' in data and isinstance(data['Defender'], list):
-                formatted_tasks.append(f"{Fore.CYAN}{Style.BRIGHT}Defender:{Style.RESET_ALL}")
-                for task in data['Defender']:
-                    name = task['Name'][:25] + "..." if len(task['Name']) > 30 else task['Name']
-                    formatted_tasks.append(
-                        f"{name:<45}{task['State']}"
-                    )
-                formatted_tasks.append("")
-            
-            return formatted_tasks if formatted_tasks else ["No tasks found"]
+                for task in sorted(data['Defender'], key=lambda x: x['Name']):
+                    formatted_tasks.append(format_task_line(task['Name'], task['State']))
+
+            return formatted_tasks
             
     except Exception as e:
         print(f"Debug - Error details: {str(e)}")
         return ["Error retrieving scheduled tasks"]
+    
+
 def format_task_scheduler_for_web(tasks_data):
     if not tasks_data:
         return ["No task scheduler data available"]
