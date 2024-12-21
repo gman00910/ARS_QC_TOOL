@@ -280,66 +280,40 @@ def set_pc_name(new_name):
     except Exception as e:
         return f"Error changing PC name: {str(e)}"
 
-
-# Change IP configuration
 def change_ip_configuration(interface_name, use_dhcp=True, ip_address=None, subnet_mask=None, gateway=None):
     try:
         if use_dhcp:
-            print(f"Debug: Changing IP configuration to DHCP for {interface_name}")
-            subprocess.call(f"netsh interface ip set address name=\"{interface_name}\" source=dhcp", shell=True)
-            subprocess.call(f"netsh interface ip set dns name=\"{interface_name}\" source=dhcp", shell=True)
-            print(f"Debug: IP configuration changed to DHCP for {interface_name}")
-            return "IP configuration changed to DHCP."
+            print(f"Debug: Changing to DHCP for {interface_name}")
+            cmd = f'netsh interface ip set address name="{interface_name}" source=dhcp'
         else:
             if not ip_address:
                 return "IP address is required for static IP configuration."
-
-            # Automatically determine the subnet mask if not provided
-            if not subnet_mask:
-                first_octet = int(ip_address.split('.')[0])
-                # Class A: 1-126
-                if first_octet >= 1 and first_octet <= 126:
-                    subnet_mask = "255.0.0.0"
-                # Class B: 128-191
-                elif first_octet >= 128 and first_octet <= 191:
-                    subnet_mask = "255.255.0.0"
-                # Class C: 192-223
-                elif first_octet >= 192 and first_octet <= 223:
-                    subnet_mask = "255.255.255.0"
-                # Special cases
-                elif first_octet == 127:  # Loopback
-                    subnet_mask = "255.0.0.0"
-                else:
-                    subnet_mask = "255.255.255.0"  # Default to Class C if unclear
-
-            print(f"Debug: Using subnet mask: {subnet_mask}")
-
-            # Release current IP configuration
-            print(f"Debug: Releasing current IP configuration for {interface_name}")
-            subprocess.call(f"netsh interface ip set address name=\"{interface_name}\" source=dhcp", shell=True)
-            subprocess.call(f"netsh interface ip set dns name=\"{interface_name}\" source=dhcp", shell=True)
-            subprocess.call(f"netsh interface ip delete address name=\"{interface_name}\" addr=all", shell=True)
-            time.sleep(2)  # Small delay to ensure the command is applied
-
-            # Set new static IP configuration
-            print(f"Debug: Changing IP configuration to static IP {ip_address} for {interface_name}")
+            
+            # Build the static IP command
+            cmd = f'netsh interface ip set address name="{interface_name}" static {ip_address} {subnet_mask}'
             if gateway:
-                command = f"netsh interface ip set address name=\"{interface_name}\" static {ip_address} {subnet_mask} {gateway}"
-            else:
-                command = f"netsh interface ip set address name=\"{interface_name}\" static {ip_address} {subnet_mask}"
+                cmd += f' {gateway}'
+
+        # Execute with admin rights
+        result = ctypes.windll.shell32.ShellExecuteW(
+            None,
+            "runas",
+            "cmd.exe",
+            f"/c {cmd}",
+            None,
+            1
+        )
+        
+        if result > 32:  # Success
+            return "IP configuration changed successfully."
+        else:
+            return f"Failed to change IP configuration. Error code: {result}"
             
-            print(f"Debug: Executing command: {command}")
-            result = subprocess.run(command, shell=True, capture_output=True, text=True)
-            
-            if result.returncode != 0:
-                print(f"Error: {result.stderr}")
-                return f"Failed to change IP configuration: {result.stderr}"
-            
-            print(f"Debug: IP configuration changed to static IP {ip_address} for {interface_name}")
-            return f"IP configuration changed to static IP: {ip_address}"
     except Exception as e:
-        print(f"Failed to change IP configuration: {str(e)}")
-        return "Failed to change IP configuration. Please check the command prompt for details."
+        print(f"Error: {str(e)}")
+        return f"Failed to change IP configuration: {str(e)}"
+    
+
 
 def get_available_timezones():
     try:

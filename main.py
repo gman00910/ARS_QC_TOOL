@@ -127,9 +127,9 @@ def change_setting(setting):
         if setting == 'time_zone':
             new_timezone = request.form.get('new_value')
             result = main_script.change_time_zone(new_timezone)
-            return render_template('result.html', result=result)
+            # Return to main page immediately after change
+            return redirect(url_for('index'))
     
-   
     if setting == 'time_zone':
         timezones = main_script.get_available_timezones()
         return render_template('change_setting.html', setting=setting, timezones=timezones)
@@ -175,67 +175,77 @@ def change_ip():
         gateway = request.form.get('gateway')
         
         result = main_script.change_ip_configuration(interface_name, use_dhcp, ip_address, subnet_mask, gateway)
-        return render_template('result.html', result=result)
+        
+        # Return JSON for AJAX handling
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'result': result, 'success': 'Failed' not in result})
+            
+        return redirect(url_for('index'))
     
-   
     interfaces = main_script.check_dhcp_status()
     return render_template('change_ip.html', interfaces=interfaces)
 
 @app.route('/open_command_prompt')
 def open_command_prompt():
-    try:
-        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
-        
-        batch_content = '@echo off\n'
-        batch_content += 'title SHOTOVER Systems - Drive Summary Details\n'
-        batch_content += 'color 0A\n'
-        batch_content += f'python "{script_path}"\n'
-        batch_content += 'echo.\n'
-        batch_content += 'pause >nul'
-        
-        batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
-        with open(batch_file, 'w') as f:
-            f.write(batch_content)
-        
-        # Use ShellExecute to run as admin
-        ctypes.windll.shell32.ShellExecuteW(
-            None,
-            "runas",  # Run as administrator
-            "cmd.exe",
-            f"/c start {batch_file}",
-            None,
-            1  # Normal window
-        )
-        
-        return "", 204
-    except Exception as e:
-        print(f"Error in open_command_prompt: {str(e)}")
-        return str(e), 500
+   try:
+       script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
+       
+       batch_content = f'''@echo off
+title SHOTOVER Systems - Drive Summary Details
+color 0A
+cd /d "{os.path.dirname(script_path)}"
+"{sys.executable}" "{script_path}"
+echo.
+pause >nul
+'''
+       
+       batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
+       with open(batch_file, 'w') as f:
+           f.write(batch_content)
+       
+       # Launch with elevated privileges 
+       ctypes.windll.shell32.ShellExecuteW(
+           None,
+           "runas",
+           "cmd.exe",
+           f"/c {batch_file}",
+           None,
+           1
+       )
+       
+       return "", 204
+   except Exception as e:
+       print(f"Error in open_command_prompt: {str(e)}")
+       return str(e), 500
 
 @app.route('/Openshell')
 def Openshell():
     try:
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
         
-        # PowerShell specific script
+        # Fixed PowerShell script
         powershell_content = f'''
-$Host.UI.RawUI.WindowTitle = "SHOTOVER Systems - Drive Summary Details"
-python "{script_path}"
-pause
+$pshost = Get-Host
+$pswindow = $pshost.UI.RawUI
+$pswindow.WindowTitle = "SHOTOVER Systems - Drive Summary Details"
+Set-Location '{os.path.dirname(script_path)}'
+& "{sys.executable}" "{script_path}"
+Write-Host "`nPress any key to continue..."
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 '''
         
         batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.ps1')
         with open(batch_file, 'w') as f:
             f.write(powershell_content)
         
-        # Use ShellExecute to run PowerShell as admin
+        # Launch with elevated privileges
         ctypes.windll.shell32.ShellExecuteW(
             None,
             "runas",
             "powershell.exe",
-            f"-ExecutionPolicy Bypass -File {batch_file}",
+            f"-NoProfile -ExecutionPolicy Bypass -File {batch_file}",
             None,
-            1  # Normal window
+            1
         )
         
         return "", 204
@@ -376,10 +386,30 @@ def open_browser():
         except:
             print("Failed to open browser. Please navigate to http://127.0.0.1:5000 manually")
 
+
+def minimize_console():
+    try:
+        def enum_windows(hwnd, windows):
+            if win32gui.IsWindowVisible(hwnd):
+                title = win32gui.GetWindowText(hwnd)
+                # Look for both Python and Flask windows
+                if "python" in title.lower() or "flask" in title.lower():
+                    windows.append(hwnd)
+        
+        windows = []
+        win32gui.EnumWindows(enum_windows, windows)
+        
+        # Minimize all matching windows
+        for hwnd in windows:
+            win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
+            
+    except Exception as e:
+        print(f"Error minimizing console: {str(e)}")
+
 if __name__ == '__main__':
     if is_admin():
         Timer(0.3, open_browser).start()
-        Timer(0.5, minimize_console).start()
+        Timer(0.5, minimize_console).start()  # Increased delay slightly
         app.run(debug=True, host='127.0.0.1', port=5000, use_reloader=False)
 
 
