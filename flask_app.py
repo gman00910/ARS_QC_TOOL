@@ -182,7 +182,6 @@ def open_command_prompt():
     try:
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
         
-        # Create batch content with formatting
         batch_content = '@echo off\n'
         batch_content += 'title SHOTOVER Systems - Drive Summary Details\n'
         batch_content += 'color 0A\n'
@@ -194,47 +193,51 @@ def open_command_prompt():
         with open(batch_file, 'w') as f:
             f.write(batch_content)
         
-        # Remove the /MAX parameter and use normal window
-        subprocess.Popen(['cmd', '/c', 'start', batch_file], 
-                        creationflags=subprocess.CREATE_NEW_CONSOLE)
+        # Use ShellExecute to run as admin
+        ctypes.windll.shell32.ShellExecuteW(
+            None,
+            "runas",  # Run as administrator
+            "cmd.exe",
+            f"/c start {batch_file}",
+            None,
+            1  # Normal window
+        )
         
         return "", 204
     except Exception as e:
-        print(f"Error in open_command_prompt: {str(e)}")  # Debug print
+        print(f"Error in open_command_prompt: {str(e)}")
         return str(e), 500
 
 @app.route('/Openshell')
 def Openshell():
     try:
-       
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
         
-       
-        batch_content = '@echo off\n'
-        batch_content += 'title SHOTOVER Systems - Drive Summary Details\n'
-        batch_content += 'color 0A\n'
-        batch_content += f'python "{script_path}"\n'
-        batch_content += 'echo.\n'
-        batch_content += 'echo Press any key to close this window...\n'
-        batch_content += 'pause >nul'
+        # PowerShell specific script
+        powershell_content = f'''
+$Host.UI.RawUI.WindowTitle = "SHOTOVER Systems - Drive Summary Details"
+python "{script_path}"
+pause
+'''
         
-       
-        batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
+        batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.ps1')
         with open(batch_file, 'w') as f:
-            f.write(batch_content)
+            f.write(powershell_content)
         
-       
-        startup_info = subprocess.STARTUPINFO()
-        startup_info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startup_info.wShowWindow = subprocess.SW_MAXIMIZE 
+        # Use ShellExecute to run PowerShell as admin
+        ctypes.windll.shell32.ShellExecuteW(
+            None,
+            "runas",
+            "powershell.exe",
+            f"-ExecutionPolicy Bypass -File {batch_file}",
+            None,
+            1  # Normal window
+        )
         
-        process = subprocess.Popen(['cmd', '/c', 'start', '/MAX', batch_file], 
-                                 startupinfo=startup_info,
-                                 creationflags=subprocess.CREATE_NEW_CONSOLE)
-        
-        return render_template('result.html', result="Shell opened successfully")
+        return "", 204
     except Exception as e:
-        return render_template('result.html', result=f"Error opening shell: {str(e)}")
+        print(f"Error in Openshell: {str(e)}")
+        return str(e), 500
 
 @app.route('/printt')
 def printt():
