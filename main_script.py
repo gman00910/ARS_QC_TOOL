@@ -860,7 +860,7 @@ def print_summary():
                 network_profiles = get_network_profile()
                 
                 for interface, info in dhcp_status.items():
-                    print(f"\n{Style.BRIGHT}{interface}:{Style.RESET_ALL}")
+                    print(f"\n{Fore.CYAN}{interface}:{Style.RESET_ALL}")
                     type_str = info.get('Type', 'N/A')
                     if isinstance(network_profiles, dict):
                         for profile_name, category in network_profiles.items():
@@ -896,9 +896,9 @@ def print_summary():
         # Windows Defender
         defender = windows_defender_status()
         print(f"\n{Fore.CYAN}Windows Defender:{Style.RESET_ALL}")
-        print(f"    Real-time Protection: {Fore.GREEN if defender['Real-time Protection'] == 'On' else Fore.RED}{defender['Real-time Protection']}{Style.RESET_ALL}")
-        print(f"    Antispyware: {Fore.GREEN if defender['Antispyware'] == 'On' else Fore.RED}{defender['Antispyware']}{Style.RESET_ALL}")
-        print(f"    Behavior Monitor: {Fore.GREEN if defender['Behavior Monitor'] == 'On' else Fore.RED}{defender['Behavior Monitor']}{Style.RESET_ALL}")
+        print(f"    Real-time Protection: {Fore.GREEN if defender['Real-time Protection'] == 'ON' else Fore.RED}{defender['Real-time Protection']}{Style.RESET_ALL}")
+        print(f"    Antispyware: {Fore.GREEN if defender['Antispyware'] == 'ON' else Fore.RED}{defender['Antispyware']}{Style.RESET_ALL}")
+        print(f"    Behavior Monitor: {Fore.GREEN if defender['Behavior Monitor'] == 'ON' else Fore.RED}{defender['Behavior Monitor']}{Style.RESET_ALL}")
 
         # Firewall Status
         firewall = check_firewall_status()
@@ -916,21 +916,14 @@ def print_summary():
         drives = quick_drive_check()
         print(f"\n{Fore.CYAN}Drive Health:{Style.RESET_ALL}")
         for drive, info in drives.items():
-            print(f"    {Style.BRIGHT}{drive}:{Style.RESET_ALL}")
+            print(f"    {Fore.CYAN}{drive}:{Style.RESET_ALL}")
             print(f"       Status: {Fore.GREEN if info['Status'] == 'Healthy' else Fore.RED}{info['Status']}{Style.RESET_ALL}")
             print(f"       Usage: {info['Usage']}")
             print(f"       Space: {info['Space']}")
         
-    # Windows Update
-    update_status = is_windows_update_enabled()
-    #if update_status == "Enabled":
-    #    print(f"\n {Fore.CYAN}Windows Update:{Style.RESET_ALL} {Fore.GREEN}Enabled{Style.RESET_ALL}")
-    #elif update_status == "Disabled":
-     #   print(f"\n {Fore.CYAN}Windows Update:{Style.RESET_ALL} {Fore.RED}Disabled{Style.RESET_ALL}")
-    #else:
-    #    print(f"\n {Fore.CYAN}Windows Update:{Style.RESET_ALL} {Fore.YELLOW}{update_status}{Style.RESET_ALL}")
-
-    print(f"\n     Windows Update: {Fore.GREEN if update_status == 'Enabled' else Fore.RED if update_status == 'Disabled' else Fore.YELLOW}{update_status}{Style.RESET_ALL}")
+        # Windows Update
+        update_status = is_windows_update_enabled()
+        print(f"\n  {Fore.CYAN}Windows Update:{Style.RESET_ALL} {Fore.GREEN if update_status == 'Enabled' else Fore.RED if update_status == 'Disabled' else Fore.YELLOW}{update_status}{Style.RESET_ALL}")
 
         # TASK SCHEDULER
         print(f"\n{Fore.GREEN}{'='*20} TASK SCHEDULER {'='*20}{Style.RESET_ALL}")
@@ -938,20 +931,24 @@ def print_summary():
         if tasks:
             for task in tasks:
                 if ':' in task:  # Category header
-                    print(f"{Style.BRIGHT}{task}{Style.RESET_ALL}")
+                    print(f"{Fore.CYAN}{task}{Style.RESET_ALL}")
                 else:
                     print(task)
 
         # COM PORTS
         print(f"\n{Fore.GREEN}{'='*20} COM PORTS {'='*20}{Style.RESET_ALL}")
-        print(f"{Style.BRIGHT}Name                     Status   Service{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}Name                     Status   Service{Style.RESET_ALL}")
         print("----                     ------   -------")
         com_ports = get_com_ports()
         print(com_ports)
 
+
+
+
+
         print(f"{Fore.CYAN}")
         print(r"""
-             ____    _    _    ___    _____     ___   __     __  _____   ____   
+                           ____    _    _    ___    _____     ___   __     __  _____   ____   
             / ___|  | |  | |  / _ \  |_   _|   / _ \  \ \   / / | ____| |  _ \  
             \___ \  | |__| | | | | |   | |    | | | |  \ \ / /  |  _|   | |_) | 
              ___) | |  __  | | |_| |   | |    | |_| |   \ V /   | |___  |  _ <  
