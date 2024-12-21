@@ -896,9 +896,9 @@ def print_summary():
         # Windows Defender
         defender = windows_defender_status()
         print(f"\n{Fore.CYAN}Windows Defender:{Style.RESET_ALL}")
-        print(f"    Real-time Protection: {Fore.GREEN if defender['Real-time Protection'] == 'ON' else Fore.RED}{defender['Real-time Protection']}{Style.RESET_ALL}")
-        print(f"    Antispyware: {Fore.GREEN if defender['Antispyware'] == 'ON' else Fore.RED}{defender['Antispyware']}{Style.RESET_ALL}")
-        print(f"    Behavior Monitor: {Fore.GREEN if defender['Behavior Monitor'] == 'ON' else Fore.RED}{defender['Behavior Monitor']}{Style.RESET_ALL}")
+        print(f"    Real-time Protection: {Fore.GREEN if defender['Real-time Protection'] == 'On' else Fore.RED}{defender['Real-time Protection']}{Style.RESET_ALL}")
+        print(f"    Antispyware: {Fore.GREEN if defender['Antispyware'] == 'On' else Fore.RED}{defender['Antispyware']}{Style.RESET_ALL}")
+        print(f"    Behavior Monitor: {Fore.GREEN if defender['Behavior Monitor'] == 'On' else Fore.RED}{defender['Behavior Monitor']}{Style.RESET_ALL}")
 
         # Firewall Status
         firewall = check_firewall_status()
@@ -921,17 +921,16 @@ def print_summary():
             print(f"       Usage: {info['Usage']}")
             print(f"       Space: {info['Space']}")
         
-        # Windows Update
-       # update_status = is_windows_update_enabled()
-       # if update_status == "ENABLED":
-       #     print(f"\n {Fore.CYAN}Windows Update:{Style.RESET_ALL} {Fore.GREEN}ENABLED{Style.RESET_ALL}")
-       #     print(f"\n     Windows Update: {Fore.GREEN if update_status == 'ENABLED' else Fore.RED if update_status == 'DISABLED' else Fore.YELLOW}{update_status}{Style.RESET_ALL}")
-       # elif update_status == "DISABLED":
-      #      print(f"\n {Fore.CYAN}Windows Update:{Style.RESET_ALL} {Fore.RED}DISABLED{Style.RESET_ALL}")
-       # else:
-       #     print(f"\n {Fore.CYAN}Windows Update:{Style.RESET_ALL} {Fore.YELLOW}{update_status}{Style.RESET_ALL}")
+    # Windows Update
+    update_status = is_windows_update_enabled()
+    #if update_status == "Enabled":
+    #    print(f"\n {Fore.CYAN}Windows Update:{Style.RESET_ALL} {Fore.GREEN}Enabled{Style.RESET_ALL}")
+    #elif update_status == "Disabled":
+     #   print(f"\n {Fore.CYAN}Windows Update:{Style.RESET_ALL} {Fore.RED}Disabled{Style.RESET_ALL}")
+    #else:
+    #    print(f"\n {Fore.CYAN}Windows Update:{Style.RESET_ALL} {Fore.YELLOW}{update_status}{Style.RESET_ALL}")
 
-        print(f"\n     Windows Update: {Fore.GREEN if update_status == 'ENABLED' else Fore.RED if update_status == 'DISABLED' else Fore.YELLOW}{update_status}{Style.RESET_ALL}")
+    print(f"\n     Windows Update: {Fore.GREEN if update_status == 'Enabled' else Fore.RED if update_status == 'Disabled' else Fore.YELLOW}{update_status}{Style.RESET_ALL}")
 
         # TASK SCHEDULER
         print(f"\n{Fore.GREEN}{'='*20} TASK SCHEDULER {'='*20}{Style.RESET_ALL}")
