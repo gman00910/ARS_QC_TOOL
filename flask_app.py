@@ -15,6 +15,7 @@ import sys
 import ctypes
 from datetime import datetime
 import tempfile
+from colorama import Fore, Style
 
 
 def resource_path(relative_path):
@@ -242,6 +243,24 @@ pause
         print(f"Error in Openshell: {str(e)}")
         return str(e), 500
 
+# @app.route('/printt')
+# def printt():
+#     try:
+#         # Get the current date/time
+#         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+#         # Run the script and capture output
+#         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
+#         result = subprocess.run([sys.executable, script_path], capture_output=True, text=True)
+#         output = result.stdout
+
+#         # Render the template with the output
+#         return render_template('print_view.html', 
+#                              output=output, 
+#                              current_time=current_time)
+#     except Exception as e:
+#         return jsonify({"success": False, "error": str(e)})
+    
 @app.route('/printt')
 def printt():
     try:
@@ -253,13 +272,22 @@ def printt():
         result = subprocess.run([sys.executable, script_path], capture_output=True, text=True)
         output = result.stdout
 
-        # Render the template with the output
+        # Convert ANSI color codes to HTML classes
+        output = (output
+            .replace(f"{Fore.CYAN}", '<span class="cyan">')
+            .replace(f"{Fore.GREEN}", '<span class="green">')
+            .replace(f"{Fore.RED}", '<span class="red">')
+            .replace(f"{Fore.YELLOW}", '<span class="yellow">')
+            .replace(f"{Style.RESET_ALL}", '</span>')
+        )
+
+        # Render the template with the colored output
         return render_template('print_view.html', 
                              output=output, 
                              current_time=current_time)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
-    
+
 
 @app.route('/run_ars', methods=['POST'])
 def run_ars_route():
@@ -309,30 +337,50 @@ def run_ars_route():
         return jsonify({"success": False, "error": str(e)})
     
 def open_browser():
-    # List of browser paths in priority order
-    browser_paths = [
-        # Chrome
-        'C:/Program Files/Google/Chrome/Application/chrome.exe %s --start-maximized',
-        # Internet Explorer
-        'C:/Program Files/Internet Explorer/iexplore.exe %s',
-        # Alternate Chrome locations
-        'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe %s --start-maximized'
+    url = 'http://127.0.0.1:5000'
+    chrome_paths = [
+        r'C:\Program Files\Google\Chrome\Application\chrome.exe',
+        r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+        # Add any other potential Chrome paths here
     ]
 
-    # Try each browser path
-    for path in browser_paths:
-        try:
-            browser = webbrowser.get(path)
-            browser.open('http://127.0.0.1:5000', new=2)
-            return  # Exit after successfully opening a browser
-        except:
-            continue  # Try next browser if this one fails
+    def try_chrome():
+        for chrome_path in chrome_paths:
+            if os.path.exists(chrome_path):
+                try:
+                    browser = webbrowser.get(f'"{chrome_path}" --start-maximized %s')
+                    browser.open(url, new=2)
+                    return True
+                except:
+                    continue
+        return False
 
-    # Fallback to system default browser
-    webbrowser.open('http://127.0.0.1:5000')
+    try:
+        # First, try to use Chrome directly if it's the default
+        if 'chrome' in webbrowser.get().name.lower():
+            webbrowser.get().open(url, new=2)
+            return
+
+        # If Chrome isn't default, try to find and use Chrome specifically
+        if try_chrome():
+            return
+
+        # If Chrome attempts fail, try using the system default browser
+        webbrowser.open(url, new=2)
+
+    except Exception as e:
+        print(f"Error opening browser: {e}")
+        # Final fallback: try basic browser open
+        try:
+            webbrowser.open_new(url)
+        except:
+            print("Failed to open browser. Please navigate to http://127.0.0.1:5000 manually")
 
 if __name__ == '__main__':
     if is_admin():
         Timer(0.3, open_browser).start()
         Timer(0.5, minimize_console).start()
         app.run(debug=True, host='127.0.0.1', port=5000, use_reloader=False)
+
+
+

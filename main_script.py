@@ -822,7 +822,7 @@ def check_notification_settings():
             return "Notifications are " + ("enabled" if value == 1 else "disabled")
         except WindowsError:
             # If that specific value isn't found, try alternate method
-            subprocess.run(['powershell', '-Command', 'Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced"'], capture_output=True)
+            subprocess.run(['powershell', '-Command', 'Get-ItemProperty -Path "HKCU:/SOFTWARE/Microsoft/Windows/CurrentVersion/Explorer/Advanced"'], capture_output=True)
             return "Could not determine exact status - please check Windows Settings"
     except Exception as e:
         return f"Error accessing notification settings: {str(e)}"
@@ -978,6 +978,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
 
 #----------THIS IS WHAT PULL REQUEST DOES --------------
 #git add .
