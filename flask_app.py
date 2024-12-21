@@ -241,6 +241,7 @@ pause
     except Exception as e:
         print(f"Error in Openshell: {str(e)}")
         return str(e), 500
+
 @app.route('/printt')
 def printt():
     try:
@@ -252,48 +253,14 @@ def printt():
         result = subprocess.run([sys.executable, script_path], capture_output=True, text=True)
         output = result.stdout
 
-        # Create simplified HTML content
-        html_content = f"""<!DOCTYPE html>
-<html>
-<head>
-    <title>SHOTOVER Systems - Drive Summary</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; padding: 20px; }}
-        .header {{ text-align: center; margin-bottom: 20px; }}
-        .content {{ white-space: pre-wrap; font-family: monospace; }}
-        @media print {{
-            body {{ margin: 0.5in; }}
-        }}
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>SHOTOVER Systems - Drive Summary</h1>
-        <p>Generated on {current_time}</p>
-    </div>
-    <div class="content">{output}</div>
-    <script>
-        window.onload = function() {{
-            window.print();
-            setTimeout(function() {{ window.close(); }}, 1000);
-        }}
-    </script>
-</body>
-</html>"""
-        
-        # Create and write to temporary file
-        temp_dir = tempfile.gettempdir()
-        temp_html = os.path.join(temp_dir, 'shotover_summary_print.html')
-        with open(temp_html, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        
-        # Open in browser for printing
-        webbrowser.open('file://' + temp_html)
-        
-        return jsonify({"success": True, "message": "Print dialog opened"})
+        # Render the template with the output
+        return render_template('print_view.html', 
+                             output=output, 
+                             current_time=current_time)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
     
+
 @app.route('/run_ars', methods=['POST'])
 def run_ars_route():
     try:
