@@ -213,25 +213,25 @@ def Openshell():
     try:
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
         
-        batch_content = '@echo off\n'
-        batch_content += 'title SHOTOVER Systems - Drive Summary Details\n'
-        batch_content += 'color 0A\n'
-        batch_content += f'python "{script_path}"\n'
-        batch_content += 'echo.\n'
-        batch_content += 'pause >nul'
+        # PowerShell specific script
+        powershell_content = f'''
+$Host.UI.RawUI.WindowTitle = "SHOTOVER Systems - Drive Summary Details"
+python "{script_path}"
+pause
+'''
         
-        batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
+        batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.ps1')
         with open(batch_file, 'w') as f:
-            f.write(batch_content)
+            f.write(powershell_content)
         
-        # Use ShellExecute to run as admin, matching command prompt style
+        # Use ShellExecute to run PowerShell as admin
         ctypes.windll.shell32.ShellExecuteW(
             None,
             "runas",
-            "cmd.exe",
-            f"/c start {batch_file}",
+            "powershell.exe",
+            f"-ExecutionPolicy Bypass -File {batch_file}",
             None,
-            1
+            1  # Normal window
         )
         
         return "", 204

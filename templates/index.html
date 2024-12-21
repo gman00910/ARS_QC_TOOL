@@ -59,6 +59,16 @@
             text-align: left;
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
+        .summary-box2 {
+            background-color: #333;
+            border: 2px solid #ff6600;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px auto;
+            width: 60%; 
+            text-align: left;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+        }
         .version-box {
             background-color: #262626;
             border: 1px solid #ff6600;
@@ -523,7 +533,7 @@
                     {% endif %}
                 </div>
             </div>
-            <div class="summary-text" style="margin-bottom: 30px;">
+            <div class="summary-text" style="margin-bottom: 0px;">
                 <div class="divider"></div>
                 <strong>Windows Update:</strong>
                 <div class="status-label">
@@ -534,76 +544,31 @@
             </div>
         </div>
     </div>
-    
-    <!-- <div class="summary-box">
-        <div class="version-box-title">Task Scheduler</div>
-        <div style="display: flex; justify-content: center; margin-left: 0;">
-            <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 18px;">{%- for task in result['Task Scheduler Status'] -%}
-    {%- if ':' in task -%}
-    <span style="color: #ff6600; font-weight: bold;">{{ task }}</span>
-    {%- else -%}
-    {%- if '3 (Enabled)' in task -%}
-    <span style="font-weight: bold;">{{ task }}</span>
-    {%- elif '1 (Disabled)' in task -%}
-    <span style="color: #ff0000;">{{ task }}</span>
-    {%- elif '1 (Disabled)' in task -%}
-    <span style="color: #00ff00;">{{ task }}</span>
-    {%- else -%}
-    {{ task }}
-    {%- endif -%}
-    {%- endif -%}
-    {%- if not loop.last -%}{{ '\n' }}{%- endif -%}
-    {%- endfor -%}</pre>
-        </div>
-    </div> -->
-
-    <div class="summary-box">
-        <div class="version-box-title">Task Scheduler</div>
-        <div style="display: flex; justify-content: center; margin-left: 0;">
-            <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 18px;">{%- for task in result['Task Scheduler Status'] -%}
-    {%- if ':' in task -%}
-    <span style="color: #ff6600; font-weight: bold;">{{ task }}</span>
-    {%- else -%}
-    {%- if '3 (Enabled)' in task -%}
-    <span style="font-weight: bold;">{{ task }}</span>
-    {%- elif '1 (Disabled)' in task -%}
-    <span style="color: #ff0000;">{{ task }}</span>
-    {%- elif '2 (Enabled' in task -%}
-    <span style="color: #00ff00;">{{ task }}</span>
-    {%- else -%}
-    {{ task }}
-    {%- endif -%}
-    {%- endif -%}
-    {%- if not loop.last -%}
-    {{ '\n' }}
-    {%- if task.endswith(':') or task == 'No Sledgehammer tasks found' -%}
-    {{ '\n\n' }}
-    {%- endif -%}
-    {%- endif -%}
-    {%- endfor -%}</pre>
-        </div>
-    </div>
-
 
     <div class="summary-box">
         <div class="version-box-title">COM Ports</div>
         <div style="display: flex; justify-content: center; margin-left: 0;">
             {% if result.get('COM Ports') %}
-                <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 18px;">
-    {%- for line in result['COM Ports'].split('\n') -%}
-        {%- if 'OK' in line -%}
-    {{ line.replace('OK', '<span style="color: #00ff00;">OK</span>') }}
-        {%- else -%}
-    {{ line }}
-        {%- endif -%}
-        {%- if not loop.last -%}{{ '\n' }}{%- endif -%}
-    {%- endfor -%}</pre>
+            <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 18px;">{{ result['COM Ports'] }}</pre>
             {% else %}
-                <div>No COM ports data available</div>
+            <div>No COM ports data available</div>
             {% endif %}
         </div>
     </div>
-
+    
+    <div class="summary-box2">
+        <div class="version-box-title">Task Scheduler</div>
+            <div style="display: flex; justify-content: flex-start; margin-left: 20px;">
+                <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 18px; text-align: left; white-space: pre;">{%- for task in result['Task Scheduler Status'] -%}
+        {%- if ':' in task -%}
+        <span style="color: #ff6600; font-weight: bold;">{{ task }}</span>
+        {%- else -%}
+        {{ task }}
+        {%- endif -%}
+        {{ '\n' if not loop.last }}{%- endfor -%}</pre>
+            </div>
+        </div>
+    </div>
 
 
     <script>
