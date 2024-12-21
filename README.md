@@ -9,3 +9,9 @@ CD C:\Users\garrett.smith\Documents\GitHub\ARS_QC_TOOL
 
 
 ![msedge_XsKD8vze9D](https://github.com/user-attachments/assets/03cba02a-a636-4d81-ac51-0761f529524d)
+
+
+
+# run shell as admin
+# cd "C:\Users\14106\Documents\GitHub\ARS_QC_TOOL"
+# python -m PyInstaller app_launcher.spec
