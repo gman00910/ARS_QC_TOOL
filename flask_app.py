@@ -332,14 +332,27 @@ def run_ars_route():
         return jsonify({"success": False, "error": str(e)})
     
 def open_browser():
-    # Chrome command to open in maximized state
-    chrome_path = 'C:/Program Files/Google/Chrome/Application/chrome.exe %s --start-maximized'
-    try:
-        browser = webbrowser.get(chrome_path)
-        browser.open('http://127.0.0.1:5000', new=2)
-    except:
-        # Fallback to default browser if Chrome isn't found
-        webbrowser.open('http://127.0.0.1:5000')
+    # List of browser paths in priority order
+    browser_paths = [
+        # Chrome
+        'C:/Program Files/Google/Chrome/Application/chrome.exe %s --start-maximized',
+        # Internet Explorer
+        'C:/Program Files/Internet Explorer/iexplore.exe %s',
+        # Alternate Chrome locations
+        'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe %s --start-maximized'
+    ]
+
+    # Try each browser path
+    for path in browser_paths:
+        try:
+            browser = webbrowser.get(path)
+            browser.open('http://127.0.0.1:5000', new=2)
+            return  # Exit after successfully opening a browser
+        except:
+            continue  # Try next browser if this one fails
+
+    # Fallback to system default browser
+    webbrowser.open('http://127.0.0.1:5000')
 
 if __name__ == '__main__':
     if is_admin():
