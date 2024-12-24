@@ -408,9 +408,15 @@ def minimize_console():
 
 if __name__ == '__main__':
     if is_admin():
-        Timer(0.3, open_browser).start()
-        Timer(0.5, minimize_console).start()  # Increased delay slightly
-        app.run(debug=True, host='127.0.0.1', port=5000, use_reloader=False)
+        # Pre-load data to avoid multiple subprocess calls
+        dhcp_info = main_script.check_dhcp_status()
+        task_scheduler_data = main_script.check_task_scheduler_status()
+        
+        # Start browser after data is loaded
+        Timer(1.5, open_browser).start()
+        Timer(1.7, minimize_console).start()
+        
+        app.run(debug=False, host='127.0.0.1', port=5000, use_reloader=False)
 
 
 

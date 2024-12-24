@@ -204,11 +204,11 @@ def get_boot_drive_version():
 # Option 8: Check if ars.exe shortcut exists on the desktop
 def check_ars_shortcut():
     try:
-        shortcut_path = r"C:\ARS\loader.hta"  # Path to the ARS.exe shortcut
+        shortcut_path = r"C:\\ARS\\loader.hta"  # Path to the ARS.exe shortcut
         if os.path.exists(shortcut_path):
             return "ARS.exe shortcut found."
         else:
-            return "ARS.exe shortcut not found."
+            return "ARS.exe shortcut not found. Please add Loader.hta to the desktop."
     except Exception as e:
         print(f"Couldn't check for ARS.exe shortcut: {str(e)}")  # Print error to command prompt
         return "Couldn't check for ARS.exe shortcut. Please check the command prompt for details."
@@ -460,23 +460,28 @@ def get_com_ports():
 
 def computer_metrics():
     try:
-        cpu_percent = psutil.cpu_percent()
-        memory_info = psutil.virtual_memory()
-        used_ram_percent = memory_info.percent
-        available_memory_gb = memory_info.available / (1024 ** 3)
-
+        memory = psutil.virtual_memory()
+        swap = psutil.swap_memory()
+        
+        total_physical = round(memory.total / (1024 ** 3), 2)
+        used_physical = round(memory.used / (1024 ** 3), 2)
+        total_virtual = round(swap.total / (1024 ** 3), 2)
+        used_virtual = round(swap.used / (1024 ** 3), 2)
+        
         return {
-            'CPU': str(cpu_percent) + '%',
-            'RAM': str(used_ram_percent) + '%',
-            'Available Memory': str(round(available_memory_gb, 2)) + ' GB'
+            'CPU': f"{psutil.cpu_percent()}%",
+            'RAM': f"{memory.percent}%",
+            'Physical Memory': f"{used_physical}GB / {total_physical}GB",
+            'Virtual Memory': f"{used_virtual}GB / {total_virtual}GB"
         }
     except Exception as e:
-        print(f"Error getting computer metrics: {str(e)}")
         return {
             'CPU': 'Error',
             'RAM': 'Error',
-            'Available Memory': 'Error'
+            'Physical Memory': 'Error',
+            'Virtual Memory': 'Error'
         }
+    
 def check_task_scheduler_status():
     try:
         ps_command = r'''
@@ -865,7 +870,8 @@ def print_summary():
         print(f"{Fore.CYAN}Computer Metrics:{Style.RESET_ALL}")
         print(f"    CPU: {metrics['CPU']}")
         print(f"    RAM: {metrics['RAM']}")
-        print(f"    Available Memory: {metrics['Available Memory']}")
+        print(f"    Physical Memory: {metrics['Physical Memory']}")
+        print(f"    Virtual Memory: {metrics['Virtual Memory']}")
 
         # Windows Defender
         defender = windows_defender_status()
