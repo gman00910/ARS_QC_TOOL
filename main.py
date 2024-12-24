@@ -253,24 +253,6 @@ $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         print(f"Error in Openshell: {str(e)}")
         return str(e), 500
 
-# @app.route('/printt')
-# def printt():
-#     try:
-#         # Get the current date/time
-#         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-#         # Run the script and capture output
-#         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
-#         result = subprocess.run([sys.executable, script_path], capture_output=True, text=True)
-#         output = result.stdout
-
-#         # Render the template with the output
-#         return render_template('print_view.html', 
-#                              output=output, 
-#                              current_time=current_time)
-#     except Exception as e:
-#         return jsonify({"success": False, "error": str(e)})
-    
 @app.route('/printt')
 def printt():
     try:
