@@ -394,12 +394,13 @@ def add_cache_headers(response):
 if __name__ == '__main__':
     if is_admin():
         # Pre-load data to avoid multiple subprocess calls
-        app.config['task_data'] = main_script.check_task_scheduler_status()
+        #app.config['task_data'] = main_script.check_task_scheduler_status()
         
         # Start browser after data is loaded
-        #Timer(0.5, open_browser).start()
-        #Timer(0.5, minimize_console).start()
-        webbrowser.open('http://127.0.0.1:5000')
+        Timer(0.5, open_browser).start()
+        Timer(0.5, minimize_console).start()
+        
+        #webbrowser.open('http://127.0.0.1:5000')
         app.run(host='127.0.0.1', port=5000)
 
 

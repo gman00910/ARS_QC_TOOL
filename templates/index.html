@@ -65,7 +65,7 @@
             border-radius: 15px;
             padding: 20px;
             margin: 20px auto;
-            width: 50%; 
+            width: 40%; 
             text-align: left;
             box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
@@ -363,7 +363,6 @@
                             <div>DNS Suffix: {{ status['DNS Suffix'] }}</div>
                         {% endif %}
                         <div>IP: {{ status['IP'] }}</div>
-                        
                         {% if status['DHCP'] == 'Disabled' %}
                             <div>Subnet Mask: {{ status.get('Subnet Mask', 'N/A') }}</div>
                             <div>Gateway: {{ status.get('Gateway', 'N/A') }}</div>
@@ -373,10 +372,13 @@
                     </div>
                 </div>
             {% endfor %}
-        {% else %}
             <div class="summary-text">{{ result['IP Configuration'] }}</div>
+        {% else %}
         {% endif %}
     </div>
+
+
+
     <div class="summary-box">
         <div class="version-box-title">General Info</div>
         <div class="summary-text">
@@ -462,7 +464,7 @@
                 {% if result.get('Computer Metrics') is mapping %}
                     {% for key, value in result['Computer Metrics'].items() %}
                         <div class="status-label">
-                            {{ key }}: <span style="font-weight: bold;">{{ value }}</span>
+                            {{ key }}: <span>{{ value }}</span>
                         </div>
                     {% endfor %}
                 {% else %}
@@ -556,7 +558,7 @@
     
     <div class="summary-box2">
         <div class="version-box-title">Task Scheduler</div>
-            <div style="display: flex; justify-content: flex-start; margin-left: 20px;">
+            <div style="display: flex; justify-content: center; margin-left: 20px;">
                 <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 18px; text-align: left; white-space: pre;">{%- for task in result['Task Scheduler Status'] -%}
         {%- if ':' in task -%}
         <span style="color: #ff6600; font-weight: bold;">{{ task }}</span>
