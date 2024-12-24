@@ -127,39 +127,28 @@
             const subnetInput = document.getElementById('subnet_mask');
             const gatewayInput = document.getElementById('gateway');
 
-            
             function toggleInputs() {
                 const isDHCP = useDhcpSelect.value === 'true';
                 ipInput.disabled = isDHCP;
                 subnetInput.disabled = isDHCP;
                 gatewayInput.disabled = isDHCP;
 
-                
+                // Clear and remove required when DHCP is enabled
                 if (isDHCP) {
                     ipInput.value = '';
                     subnetInput.value = '';
                     gatewayInput.value = '';
+                    ipInput.required = false;
+                    subnetInput.required = false;
+                    gatewayInput.required = false;
+                } else {
+                    // Only make IP required when static
+                    ipInput.required = true;
                 }
-
-                
-                ipInput.required = !isDHCP;
             }
 
-            
             useDhcpSelect.addEventListener('change', toggleInputs);
-
-            
-            toggleInputs();
-
-            
-            ipInput.addEventListener('change', function() {
-                const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-                if (this.value && !ipPattern.test(this.value)) {
-                    alert('Please enter a valid IP address');
-                    this.value = '';
-                    this.focus();
-                }
-            });
+            toggleInputs();  // Run on page load
         });
     </script>
 </body>

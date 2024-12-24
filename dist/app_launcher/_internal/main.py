@@ -17,17 +17,6 @@ from datetime import datetime
 import tempfile
 from colorama import Fore, Style
 
-
-def resource_path(relative_path):
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath("."), relative_path)
-
-app = Flask(__name__, 
-           static_url_path='/static',
-           static_folder=resource_path('static'),
-           template_folder=resource_path('templates'))
-
 def is_admin():
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
@@ -36,10 +25,19 @@ def is_admin():
 
 if not is_admin():
     if sys.platform == 'win32':
-        script = os.path.abspath(sys.argv[0])
-        params = ' '.join([script] + sys.argv[1:])
-        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
+        subprocess.Popen(["powershell", 
+                         "Start-Process", 
+                         "python", 
+                         f'"{sys.argv[0]}"', 
+                         "-Verb", 
+                         "RunAs"], 
+                        creationflags=subprocess.CREATE_NO_WINDOW)
         sys.exit(0)
+
+app = Flask(__name__, 
+           static_url_path='/static',
+           static_folder='static',
+           template_folder='templates')
     
 def minimize_console():
     def enum_windows(hwnd, windows):
@@ -127,9 +125,9 @@ def change_setting(setting):
         if setting == 'time_zone':
             new_timezone = request.form.get('new_value')
             result = main_script.change_time_zone(new_timezone)
-            return render_template('result.html', result=result)
+            # Return to main page immediately after change
+            return redirect(url_for('index'))
     
-   
     if setting == 'time_zone':
         timezones = main_script.get_available_timezones()
         return render_template('change_setting.html', setting=setting, timezones=timezones)
@@ -175,67 +173,77 @@ def change_ip():
         gateway = request.form.get('gateway')
         
         result = main_script.change_ip_configuration(interface_name, use_dhcp, ip_address, subnet_mask, gateway)
-        return render_template('result.html', result=result)
+        
+        # Return JSON for AJAX handling
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'result': result, 'success': 'Failed' not in result})
+            
+        return redirect(url_for('index'))
     
-   
     interfaces = main_script.check_dhcp_status()
     return render_template('change_ip.html', interfaces=interfaces)
 
 @app.route('/open_command_prompt')
 def open_command_prompt():
-    try:
-        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
-        
-        batch_content = '@echo off\n'
-        batch_content += 'title SHOTOVER Systems - Drive Summary Details\n'
-        batch_content += 'color 0A\n'
-        batch_content += f'python "{script_path}"\n'
-        batch_content += 'echo.\n'
-        batch_content += 'pause >nul'
-        
-        batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
-        with open(batch_file, 'w') as f:
-            f.write(batch_content)
-        
-        # Use ShellExecute to run as admin
-        ctypes.windll.shell32.ShellExecuteW(
-            None,
-            "runas",  # Run as administrator
-            "cmd.exe",
-            f"/c start {batch_file}",
-            None,
-            1  # Normal window
-        )
-        
-        return "", 204
-    except Exception as e:
-        print(f"Error in open_command_prompt: {str(e)}")
-        return str(e), 500
+   try:
+       script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
+       
+       batch_content = f'''@echo off
+title SHOTOVER Systems - Drive Summary Details
+color 0A
+cd /d "{os.path.dirname(script_path)}"
+"{sys.executable}" "{script_path}"
+echo.
+pause >nul
+'''
+       
+       batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
+       with open(batch_file, 'w') as f:
+           f.write(batch_content)
+       
+       # Launch with elevated privileges 
+       ctypes.windll.shell32.ShellExecuteW(
+           None,
+           "runas",
+           "cmd.exe",
+           f"/c {batch_file}",
+           None,
+           1
+       )
+       
+       return "", 204
+   except Exception as e:
+       print(f"Error in open_command_prompt: {str(e)}")
+       return str(e), 500
 
 @app.route('/Openshell')
 def Openshell():
     try:
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
         
-        # PowerShell specific script
+        # Fixed PowerShell script
         powershell_content = f'''
-$Host.UI.RawUI.WindowTitle = "SHOTOVER Systems - Drive Summary Details"
-python "{script_path}"
-pause
+$pshost = Get-Host
+$pswindow = $pshost.UI.RawUI
+$pswindow.WindowTitle = "SHOTOVER Systems - Drive Summary Details"
+Set-Location '{os.path.dirname(script_path)}'
+& "{sys.executable}" "{script_path}"
+Write-Host "`nPress any key to continue..."
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 '''
         
         batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.ps1')
         with open(batch_file, 'w') as f:
             f.write(powershell_content)
         
-        # Use ShellExecute to run PowerShell as admin
+        # Launch with elevated privileges
         ctypes.windll.shell32.ShellExecuteW(
             None,
             "runas",
             "powershell.exe",
-            f"-ExecutionPolicy Bypass -File {batch_file}",
+            f"-NoProfile -ExecutionPolicy Bypass -File {batch_file}",
             None,
-            1  # Normal window
+            1
         )
         
         return "", 204
@@ -243,24 +251,6 @@ pause
         print(f"Error in Openshell: {str(e)}")
         return str(e), 500
 
-# @app.route('/printt')
-# def printt():
-#     try:
-#         # Get the current date/time
-#         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-#         # Run the script and capture output
-#         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
-#         result = subprocess.run([sys.executable, script_path], capture_output=True, text=True)
-#         output = result.stdout
-
-#         # Render the template with the output
-#         return render_template('print_view.html', 
-#                              output=output, 
-#                              current_time=current_time)
-#     except Exception as e:
-#         return jsonify({"success": False, "error": str(e)})
-    
 @app.route('/printt')
 def printt():
     try:
@@ -376,11 +366,42 @@ def open_browser():
         except:
             print("Failed to open browser. Please navigate to http://127.0.0.1:5000 manually")
 
+
+def minimize_console():
+    try:
+        def enum_windows(hwnd, windows):
+            if win32gui.IsWindowVisible(hwnd):
+                title = win32gui.GetWindowText(hwnd)
+                # Look for both Python and Flask windows
+                if "python" in title.lower() or "flask" in title.lower():
+                    windows.append(hwnd)
+        
+        windows = []
+        win32gui.EnumWindows(enum_windows, windows)
+        
+        # Minimize all matching windows
+        for hwnd in windows:
+            win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
+            
+    except Exception as e:
+        print(f"Error minimizing console: {str(e)}")
+
+@app.after_request
+def add_cache_headers(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+    return response
+
 if __name__ == '__main__':
     if is_admin():
-        Timer(0.3, open_browser).start()
+        # Pre-load data to avoid multiple subprocess calls
+        #app.config['task_data'] = main_script.check_task_scheduler_status()
+        
+        # Start browser after data is loaded
+        Timer(0.5, open_browser).start()
         Timer(0.5, minimize_console).start()
-        app.run(debug=True, host='127.0.0.1', port=5000, use_reloader=False)
+        
+        #webbrowser.open('http://127.0.0.1:5000')
+        app.run(host='127.0.0.1', port=5000)
 
 
 
