@@ -5,48 +5,39 @@ import time
 import webbrowser
 from pathlib import Path
 
+# In app_launcher.py
 def launch_flask():
     try:
-        # Get the directory containing the executable
-        if getattr(sys, 'frozen', False):
-            application_path = os.path.dirname(sys.executable)
-        else:
-            application_path = os.path.dirname(os.path.abspath(__file__))
+        # Get directory path
+        application_path = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
 
-        # Set Flask environment variables
-        os.environ['FLASK_APP'] = 'main.py'  # Change this to your actual Flask app filename
-        os.environ['FLASK_ENV'] = 'production'
+        flask_app = Path(application_path) / "main.py"
         
-        # Path to Flask app
-        flask_app = Path(application_path) / "main.py"  # Change this to your actual Flask app filename
-        
-        # Launch Flask without console
+        # Launch Flask as a single process
         process = subprocess.Popen(
             [sys.executable, str(flask_app)],
-            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0,
+            creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=application_path
         )
         
-        # Wait for Flask to start
-        time.sleep(2)
+        # Wait for Flask to fully start
+        time.sleep(3)  # Increased from 2 to 3 seconds
         
-        # Open browser (prioritize Chrome)
+        # Single browser launch attempt
         try:
-            chrome_path = 'C:/Program Files/Google/Chrome/Application/chrome.exe %s'
-            browser = webbrowser.get(chrome_path)
+            chrome_path = r'C:\Program Files\Google\Chrome\Application\chrome.exe %s'
+            webbrowser.get(chrome_path).open('http://127.0.0.1:5000')
         except:
-            browser = webbrowser.get()
-        browser.open('http://127.0.0.1:5000')
+            webbrowser.open('http://127.0.0.1:5000')
         
         return process
-        
-    except Exception as e:
-        error_log = Path(application_path) / 'error_log.txt'
-        with open(error_log, 'w') as f:
-            f.write(f"Error: {str(e)}")
 
+    except Exception as e:
+        with open(Path(application_path) / 'error_log.txt', 'w') as f:
+            f.write(f"Error: {str(e)}")
+            
 if __name__ == '__main__':
     flask_process = launch_flask()
     try:

@@ -17,17 +17,6 @@ from datetime import datetime
 import tempfile
 from colorama import Fore, Style
 
-
-def resource_path(relative_path):
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath("."), relative_path)
-
-app = Flask(__name__, 
-           static_url_path='/static',
-           static_folder=resource_path('static'),
-           template_folder=resource_path('templates'))
-
 def is_admin():
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
@@ -36,10 +25,19 @@ def is_admin():
 
 if not is_admin():
     if sys.platform == 'win32':
-        script = os.path.abspath(sys.argv[0])
-        params = ' '.join([script] + sys.argv[1:])
-        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
+        subprocess.Popen(["powershell", 
+                         "Start-Process", 
+                         "python", 
+                         f'"{sys.argv[0]}"', 
+                         "-Verb", 
+                         "RunAs"], 
+                        creationflags=subprocess.CREATE_NO_WINDOW)
         sys.exit(0)
+
+app = Flask(__name__, 
+           static_url_path='/static',
+           static_folder='static',
+           template_folder='templates')
     
 def minimize_console():
     def enum_windows(hwnd, windows):
@@ -388,17 +386,21 @@ def minimize_console():
     except Exception as e:
         print(f"Error minimizing console: {str(e)}")
 
+@app.after_request
+def add_cache_headers(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+    return response
+
 if __name__ == '__main__':
     if is_admin():
         # Pre-load data to avoid multiple subprocess calls
-        dhcp_info = main_script.check_dhcp_status()
-        task_scheduler_data = main_script.check_task_scheduler_status()
+        app.config['task_data'] = main_script.check_task_scheduler_status()
         
         # Start browser after data is loaded
-        Timer(1.5, open_browser).start()
-        Timer(1.7, minimize_console).start()
-        
-        app.run(debug=False, host='127.0.0.1', port=5000, use_reloader=False)
+        #Timer(0.5, open_browser).start()
+        #Timer(0.5, minimize_console).start()
+        webbrowser.open('http://127.0.0.1:5000')
+        app.run(host='127.0.0.1', port=5000)
 
 
 

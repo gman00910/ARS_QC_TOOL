@@ -507,7 +507,7 @@ def check_task_scheduler_status():
         }
         $formattedTasks | ConvertTo-Json -Depth 3
         '''
-        result = subprocess.run(["powershell", "-Command", ps_command], capture_output=True, text=True)
+        result = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_command], capture_output=True, text=True)
         if result.returncode == 0:
             data = json.loads(result.stdout)
             formatted_tasks = []
@@ -727,7 +727,7 @@ def check_defrag_settings():
         Select-Object State | ConvertTo-Json
         """
         result = subprocess.run(
-            ["powershell", "-Command", ps_command],
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_command],
             capture_output=True,
             text=True
         )
@@ -751,7 +751,7 @@ def get_network_profile():
         Get-NetConnectionProfile | Select-Object InterfaceAlias, NetworkCategory | ConvertTo-Json
         """
         result = subprocess.run(
-            ["powershell", "-Command", ps_command],
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_command],
             capture_output=True,
             text=True
         )
@@ -774,7 +774,7 @@ def get_network_profile():
 def is_windows_update_enabled():
     ps_command = "Get-Service -Name wuauserv | Select-Object -ExpandProperty Status"
     result = subprocess.run(
-        ["powershell", "-Command", ps_command],
+        ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_command],
         capture_output=True,
         text=True
     )
