@@ -392,16 +392,47 @@ def add_cache_headers(response):
     return response
 
 if __name__ == '__main__':
-    if is_admin():
-        # Pre-load data to avoid multiple subprocess calls
-        #app.config['task_data'] = main_script.check_task_scheduler_status()
+    # if is_admin():
+    #     # Pre-load data to avoid multiple subprocess calls
+    #     #app.config['task_data'] = main_script.check_task_scheduler_status()
         
-        # Start browser after data is loaded
-        Timer(0.5, open_browser).start()
-        Timer(0.5, minimize_console).start()
+    #     # Start browser after data is loaded
+    #     Timer(0.5, open_browser).start()
+    #     Timer(0.5, minimize_console).start()
         
-        #webbrowser.open('http://127.0.0.1:5000')
-        app.run(host='127.0.0.1', port=5000)
 
+    #     app.run(host='127.0.0.1', port=5000)
+    #     input("Press Enter to exit...")
 
-
+    try:
+        if is_admin():
+            # Existing code
+            webbrowser.open('http://127.0.0.1:5000')
+            app.run(host='127.0.0.1', port=5000)
+    except Exception as e:
+        # Write error to a file in the same directory as the executable
+        import traceback
+        import os
+        
+        # Get the directory of the executable
+        if getattr(sys, 'frozen', False):
+            exe_dir = os.path.dirname(sys.executable)
+        else:
+            exe_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Write error to a log file
+        error_log_path = os.path.join(exe_dir, 'exe_error_log.txt')
+        with open(error_log_path, 'w') as f:
+            f.write(f"Error: {str(e)}\n")
+            f.write("\nTraceback:\n")
+            traceback.print_exc(file=f)
+        
+        # Optional: Show a message box
+        import tkinter
+        import tkinter.messagebox
+        root = tkinter.Tk()
+        root.withdraw()
+        tkinter.messagebox.showerror("Error", f"An error occurred. Check {error_log_path} for details.")
+        
+        # Pause to allow reading the error
+        input("Press Enter to exit...")
