@@ -16,6 +16,7 @@ import ctypes
 from datetime import datetime
 import tempfile
 from colorama import Fore, Style
+import time
 
 def is_admin():
     try:
@@ -185,49 +186,50 @@ def change_ip():
 
 @app.route('/open_command_prompt')
 def open_command_prompt():
-   try:
-       script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
-       
-       batch_content = f'''@echo off
+    try:
+        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
+        
+        # Create a batch file that only runs the script, doesn't start a new web server
+        batch_content = f'''@echo off
 title SHOTOVER Systems - Drive Summary Details
 color 0A
 cd /d "{os.path.dirname(script_path)}"
-"{sys.executable}" "{script_path}"
+"{sys.executable}" "{script_path}" --cli-only
 echo.
 pause >nul
 '''
-       
-       batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
-       with open(batch_file, 'w') as f:
-           f.write(batch_content)
-       
-       # Launch with elevated privileges 
-       ctypes.windll.shell32.ShellExecuteW(
-           None,
-           "runas",
-           "cmd.exe",
-           f"/c {batch_file}",
-           None,
-           1
-       )
-       
-       return "", 204
-   except Exception as e:
-       print(f"Error in open_command_prompt: {str(e)}")
-       return str(e), 500
+        
+        batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
+        with open(batch_file, 'w') as f:
+            f.write(batch_content)
+        
+        # Launch with elevated privileges but don't start a new web server
+        ctypes.windll.shell32.ShellExecuteW(
+            None,
+            "runas",
+            "cmd.exe",
+            f"/c {batch_file}",
+            None,
+            1
+        )
+        
+        return "", 204  # Return no content, success status
+    except Exception as e:
+        print(f"Error in open_command_prompt: {str(e)}")
+        return str(e), 500
 
 @app.route('/Openshell')
 def Openshell():
     try:
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
         
-        # Fixed PowerShell script
+        # Modified PowerShell script that only runs the summary, doesn't start web server
         powershell_content = f'''
 $pshost = Get-Host
 $pswindow = $pshost.UI.RawUI
 $pswindow.WindowTitle = "SHOTOVER Systems - Drive Summary Details"
 Set-Location '{os.path.dirname(script_path)}'
-& "{sys.executable}" "{script_path}"
+& "{sys.executable}" "{script_path}" --cli-only
 Write-Host "`nPress any key to continue..."
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 '''
@@ -246,7 +248,7 @@ $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
             1
         )
         
-        return "", 204
+        return "", 204  # Return no content, success status
     except Exception as e:
         print(f"Error in Openshell: {str(e)}")
         return str(e), 500
@@ -372,67 +374,46 @@ def minimize_console():
         def enum_windows(hwnd, windows):
             if win32gui.IsWindowVisible(hwnd):
                 title = win32gui.GetWindowText(hwnd)
-                # Look for both Python and Flask windows
-                if "python" in title.lower() or "flask" in title.lower():
+                # Only minimize the main Python/Flask window
+                if ("python" in title.lower() or "flask" in title.lower()) and "summary" not in title.lower():
                     windows.append(hwnd)
         
         windows = []
         win32gui.EnumWindows(enum_windows, windows)
         
-        # Minimize all matching windows
-        for hwnd in windows:
-            win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
+        # Only minimize the main console window
+        if windows:
+            win32gui.ShowWindow(windows[0], win32con.SW_MINIMIZE)
             
     except Exception as e:
         print(f"Error minimizing console: {str(e)}")
 
-@app.after_request
-def add_cache_headers(response):
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
-    return response
+# @app.after_request
+# def add_cache_headers(response):
+#     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+#     return response
 
 if __name__ == '__main__':
-    # if is_admin():
-    #     # Pre-load data to avoid multiple subprocess calls
-    #     #app.config['task_data'] = main_script.check_task_scheduler_status()
-        
-    #     # Start browser after data is loaded
-    #     Timer(0.5, open_browser).start()
-    #     Timer(0.5, minimize_console).start()
-        
-
-    #     app.run(host='127.0.0.1', port=5000)
-    #     input("Press Enter to exit...")
-
-    try:
-        if is_admin():
-            # Existing code
-            webbrowser.open('http://127.0.0.1:5000')
-            app.run(host='127.0.0.1', port=5000)
-    except Exception as e:
-        # Write error to a file in the same directory as the executable
-        import traceback
-        import os
-        
-        # Get the directory of the executable
-        if getattr(sys, 'frozen', False):
-            exe_dir = os.path.dirname(sys.executable)
+    if is_admin():
+        # Check if we're running in CLI-only mode
+        if len(sys.argv) > 1 and sys.argv[1] == '--cli-only':
+            main_script.print_summary()
         else:
-            exe_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        # Write error to a log file
-        error_log_path = os.path.join(exe_dir, 'exe_error_log.txt')
-        with open(error_log_path, 'w') as f:
-            f.write(f"Error: {str(e)}\n")
-            f.write("\nTraceback:\n")
-            traceback.print_exc(file=f)
-        
-        # Optional: Show a message box
-        import tkinter
-        import tkinter.messagebox
-        root = tkinter.Tk()
-        root.withdraw()
-        tkinter.messagebox.showerror("Error", f"An error occurred. Check {error_log_path} for details.")
-        
-        # Pause to allow reading the error
-        input("Press Enter to exit...")
+            # Start the web server first
+            server_thread = Thread(target=lambda: app.run(host='127.0.0.1', port=5000))
+            server_thread.daemon = True
+            server_thread.start()
+            
+            # Wait a moment for Flask to start
+            time.sleep(1)
+            
+            # Then open browser and minimize console
+            open_browser()
+           # minimize_console()
+            
+            # Keep the main thread running
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                sys.exit(0)

@@ -957,7 +957,10 @@ def main():
     print_summary()
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == '--cli-only':
+        print_summary()
+    else:
+        main()
 
 
 
