@@ -13,6 +13,8 @@ CD C:\Users\garrett.smith\Documents\GitHub\ARS_QC_TOOL
 
 
 # run shell as admin
-# cd "C:\Users\14106\Documents\GitHub\ARS_QC_TOOL"
-# python -m PyInstaller app_launcher.spec
+# cd "C:\Users\14106\Documents\GitHub\ARS_QC_TOOL"              --> home laptop
+# PS C:\Users\garrett.smith\Documents\github\ARS_QC_tool>       --> Work laptop
+
+# python -m PyInstaller main.py
 # pyinstaller --onefile --console --add-data "templates;templates" --add-data "static;static" main.py
