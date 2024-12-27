@@ -17,16 +17,149 @@ from datetime import datetime
 import tempfile
 from colorama import Fore, Style
 import time
+import logging
+import traceback
+from datetime import datetime
+import psutil
+import logging
+from datetime import datetime
+import os
+import json
+
+class ProcessTracker:
+    def __init__(self):
+        # Set up logging
+        self.log_dir = 'process_logs'
+        os.makedirs(self.log_dir, exist_ok=True)
+        
+        self.log_file = os.path.join(
+            self.log_dir, 
+            f'process_tracker_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+        )
+        
+        # Configure logging
+        self.logger = logging.getLogger('ProcessTracker')
+        self.logger.setLevel(logging.DEBUG)
+        
+        # File handler
+        fh = logging.FileHandler(self.log_file)
+        fh.setLevel(logging.DEBUG)
+        
+        # Console handler
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+        
+        # Formatter
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        fh.setFormatter(formatter)
+        ch.setFormatter(formatter)
+        
+        self.logger.addHandler(fh)
+        self.logger.addHandler(ch)
+        
+        # Track initial state
+        self.initial_processes = self.get_current_processes()
+        self.log_process_state("Initial process state")
+
+    def get_current_processes(self):
+        processes = {}
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'create_time']):  # Removed 'parent'
+            try:
+                pinfo = proc.as_dict(['pid', 'name', 'cmdline', 'create_time'])
+                try:
+                    pinfo['parent'] = proc.parent().pid if proc.parent() else None
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pinfo['parent'] = None
+                processes[proc.pid] = pinfo
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        return processes
+
+    def log_process_state(self, event_type="Process Check"):
+        current_processes = self.get_current_processes()
+        
+        # Look for new processes
+        for pid, proc_info in current_processes.items():
+            if pid not in self.initial_processes:
+                if any(term in proc_info['name'].lower() for term in ['python', 'powershell', 'cmd', 'shell']):
+                    self.logger.info(f"""
+New Process Detected:
+Event: {event_type}
+PID: {pid}
+Name: {proc_info['name']}
+Command: {' '.join(proc_info['cmdline']) if proc_info['cmdline'] else 'N/A'}
+Parent PID: {proc_info['parent']}
+Creation Time: {datetime.fromtimestamp(proc_info['create_time']).strftime('%Y-%m-%d %H:%M:%S.%f')}
+""")
+
+        # Look for terminated processes
+        for pid, proc_info in self.initial_processes.items():
+            if pid not in current_processes:
+                if any(term in proc_info['name'].lower() for term in ['python', 'powershell', 'cmd', 'shell']):
+                    self.logger.info(f"""
+Process Terminated:
+Event: {event_type}
+PID: {pid}
+Name: {proc_info['name']}
+Command: {' '.join(proc_info['cmdline']) if proc_info['cmdline'] else 'N/A'}
+""")
+
+        # Update initial state
+        self.initial_processes = current_processes
+
+    def log_subprocess_call(self, command, cwd=None):
+        self.logger.info(f"""
+Subprocess Call:
+Command: {command}
+Working Directory: {cwd or 'Default'}
+Current Process ID: {os.getpid()}
+""")
+        self.log_process_state("Subprocess Call")
+
+# Create a global instance
+process_tracker = ProcessTracker()
+
+
+
+
+
+
+
+
+# Set up logging
+log_filename = f'app_debug_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_filename),
+        logging.StreamHandler()  # This will print to console as well
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Add this function to track subprocess calls
+def log_subprocess_execution(cmd, cwd=None):
+    logger.debug(f"""
+Subprocess Execution:
+Command: {cmd}
+Working Directory: {cwd or 'Default'}
+Process ID: {os.getpid()}
+Python Executable: {sys.executable}
+Arguments: {sys.argv}
+""")
+    
 
 def get_subprocess_flags():
-    return {
-        'creationflags': subprocess.CREATE_NO_WINDOW,
-        'shell': False,
-        'startupinfo': subprocess.STARTUPINFO(
-            dwFlags=subprocess.STARTF_USESHOWWINDOW,
-            wShowWindow=subprocess.SW_HIDE
-        )
-    }
+    if sys.platform == 'win32':
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        return {
+            'startupinfo': startupinfo,
+            'creationflags': subprocess.CREATE_NO_WINDOW,
+            'shell': False
+        }
+    return {'shell': False}
 
 def is_admin():
     try:
@@ -36,13 +169,10 @@ def is_admin():
 
 if not is_admin():
     if sys.platform == 'win32':
-        subprocess.Popen(["powershell", 
-                         "Start-Process", 
-                         "python", 
-                         f'"{sys.argv[0]}"', 
-                         "-Verb", 
-                         "RunAs"], 
-                        creationflags=subprocess.CREATE_NO_WINDOW)
+        ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", sys.executable,
+            f'"{sys.argv[0]}"', None, 1
+        )
         sys.exit(0)
 
 def run_as_admin():
@@ -211,9 +341,12 @@ def change_ip():
 @app.route('/open_command_prompt')
 def open_command_prompt():
     try:
+        process_tracker.logger.info("open_command_prompt route called")
+        process_tracker.log_process_state("Before Command Prompt Open")
+        logger.debug("Starting open_command_prompt route")
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
+        logger.debug(f"Script path: {script_path}")
         
-        # Create a batch file that only runs the script, doesn't start a new web server
         batch_content = f'''@echo off
 title SHOTOVER Systems - Drive Summary Details
 color 0A
@@ -222,12 +355,13 @@ cd /d "{os.path.dirname(script_path)}"
 echo.
 pause >nul
 '''
-        
         batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
+        logger.debug(f"Creating batch file at: {batch_file}")
+        
         with open(batch_file, 'w') as f:
             f.write(batch_content)
         
-        # Launch with elevated privileges but don't start a new web server
+        logger.debug("Attempting to execute batch file")
         ctypes.windll.shell32.ShellExecuteW(
             None,
             "runas",
@@ -236,33 +370,38 @@ pause >nul
             None,
             1
         )
-        
-        return "", 204  # Return no content, success status
+
+        logger.debug("Batch file execution completed")
+        process_tracker.log_process_state("After Command Prompt Open")
+        return "", 204
     except Exception as e:
-        print(f"Error in open_command_prompt: {str(e)}")
+        process_tracker.logger.error(f"Error in open_command_prompt: {str(e)}")
         return str(e), 500
+    
 
 @app.route('/Openshell')
 def Openshell():
     try:
+        process_tracker.logger.info("Openshell route called")
+        process_tracker.log_process_state("Before PowerShell Open")
+        logger.debug("Starting Openshell route")
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
+        logger.debug(f"Script path: {script_path}")
         
-        # Modified PowerShell script that only runs the summary, doesn't start web server
         powershell_content = f'''
-$pshost = Get-Host
-$pswindow = $pshost.UI.RawUI
-$pswindow.WindowTitle = "SHOTOVER Systems - Drive Summary Details"
+$Host.UI.RawUI.WindowTitle = "SHOTOVER Systems - Drive Summary Details"
 Set-Location '{os.path.dirname(script_path)}'
 & "{sys.executable}" "{script_path}" --cli-only
 Write-Host "`nPress any key to continue..."
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 '''
-        
         batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.ps1')
+        logger.debug(f"Creating PowerShell script at: {batch_file}")
+        
         with open(batch_file, 'w') as f:
             f.write(powershell_content)
         
-        # Launch with elevated privileges
+        logger.debug("Attempting to execute PowerShell script")
         ctypes.windll.shell32.ShellExecuteW(
             None,
             "runas",
@@ -271,11 +410,13 @@ $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
             None,
             1
         )
-        
-        return "", 204  # Return no content, success status
+        logger.debug("PowerShell script execution completed")
+        process_tracker.log_process_state("After PowerShell Open")
+        return "", 204
     except Exception as e:
-        print(f"Error in Openshell: {str(e)}")
+        process_tracker.logger.error(f"Error in Openshell: {str(e)}")
         return str(e), 500
+
 
 @app.route('/printt')
 def printt():
@@ -351,43 +492,27 @@ def run_ars_route():
     
 def open_browser():
     url = 'http://127.0.0.1:5000'
-    chrome_paths = [
-        r'C:\Program Files\Google\Chrome\Application\chrome.exe',
-        r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
-        # Add any other potential Chrome paths here
-    ]
-
-    def try_chrome():
-        for chrome_path in chrome_paths:
-            if os.path.exists(chrome_path):
-                try:
-                    browser = webbrowser.get(f'"{chrome_path}" --start-maximized %s')
-                    browser.open(url, new=2)
-                    return True
-                except:
-                    continue
-        return False
-
     try:
-        # First, try to use Chrome directly if it's the default
-        if 'chrome' in webbrowser.get().name.lower():
-            webbrowser.get().open(url, new=2)
-            return
-
-        # If Chrome isn't default, try to find and use Chrome specifically
-        if try_chrome():
-            return
-
-        # If Chrome attempts fail, try using the system default browser
-        webbrowser.open(url, new=2)
-
+        # Use a simpler browser opening approach
+        webbrowser.get('windows-default').open(url, new=2, autoraise=True)
     except Exception as e:
         print(f"Error opening browser: {e}")
-        # Final fallback: try basic browser open
-        try:
-            webbrowser.open_new(url)
-        except:
-            print("Failed to open browser. Please navigate to http://127.0.0.1:5000 manually")
+
+if __name__ == '__main__':
+    process_tracker.logger.info("Application Starting")
+    process_tracker.log_process_state("Application Start")
+
+    if is_admin():
+        process_tracker.logger.info("Running with admin privileges")
+        
+        # Start Flask without threading
+        app.run(debug=False, host='127.0.0.1', port=5000, use_reloader=False)
+        
+        # Open browser after Flask starts
+        Timer(1.5, open_browser).start()
+    else:
+        process_tracker.logger.warning("Not running with admin privileges")
+        # Handle non-admin case
 
 
 def minimize_console():
@@ -415,17 +540,26 @@ def minimize_console():
 #     return response
 
 if __name__ == '__main__':
-    if run_as_admin():
-        if len(sys.argv) > 1 and sys.argv[1] == '--cli-only':
-            main_script.print_summary()
-        else:
-            server_thread = Thread(target=lambda: app.run(host='127.0.0.1', port=5000))
-            server_thread.daemon = True
-            server_thread.start()
-            time.sleep(1)
+    process_tracker.logger.info("Application Starting")
+    process_tracker.log_process_state("Application Start")
+
+    if is_admin():
+        process_tracker.logger.info("Running with admin privileges")
+        
+        def delayed_browser_open():
+            process_tracker.log_process_state("Before Browser Open")
             open_browser()
-            try:
-                while True:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                sys.exit(0)
+            process_tracker.log_process_state("After Browser Open")
+
+        def delayed_console_minimize():
+            process_tracker.log_process_state("Before Console Minimize")
+            minimize_console()
+            process_tracker.log_process_state("After Console Minimize")
+
+        Timer(0.3, delayed_browser_open).start()
+        Timer(0.5, delayed_console_minimize).start()
+        
+        process_tracker.logger.info("Starting Flask server")
+        app.run(debug=False, host='127.0.0.1', port=5000, use_reloader=False)
+    else:
+        process_tracker.logger.warning("Not running with admin privileges")

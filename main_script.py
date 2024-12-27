@@ -15,29 +15,41 @@ import pythoncom
 from pathlib import Path
 import winshell
 import winreg
-
+import sys
 
 import logging
 import os
 from datetime import datetime
 
 # Create logs directory if it doesn't exist
-if not os.path.exists('logs'):
-    os.makedirs('logs')
+log_dir = 'subprocess_logs'
+os.makedirs(log_dir, exist_ok=True)
 
-# Setup logging to both file and console
-log_filename = os.path.join('logs', f'subprocess_debug_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
+# Setup logging with a specific encoding
+log_filename = os.path.join(log_dir, f'subprocess_debug_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(log_filename),
-        logging.StreamHandler()  # This will print to console
+        logging.FileHandler(log_filename, encoding='utf-8'),
+        logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-
+def log_subprocess_call(func_name):
+    def decorator(f):
+        def wrapper(*args, **kwargs):
+            logger.debug(f"Starting subprocess call in {func_name}")
+            try:
+                result = f(*args, **kwargs)
+                logger.debug(f"Completed subprocess call in {func_name}")
+                return result
+            except Exception as e:
+                logger.error(f"Error in {func_name}: {str(e)}")
+                raise
+        return wrapper
+    return decorator
 def get_subprocess_flags():
     return {
         'creationflags': subprocess.CREATE_NO_WINDOW,
@@ -48,20 +60,18 @@ def get_subprocess_flags():
         )
     }
 
-
-def log_subprocess_call(func_name):
-    def decorator(f):
-        def wrapper(*args, **kwargs):
-            logger.debug(f"🔄 Starting subprocess call in {func_name}")
+def log_current_python_processes():
+    try:
+        logger.debug("Current Python processes:")
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:
-                result = f(*args, **kwargs)
-                logger.debug(f"✅ Finished subprocess call in {func_name}")
-                return result
-            except Exception as e:
-                logger.error(f"❌ Error in {func_name}: {str(e)}")
-                raise
-        return wrapper
-    return decorator
+                if 'python' in proc.info['name'].lower():
+                    cmd = ' '.join(proc.info['cmdline'] or [])
+                    logger.debug(f"PID: {proc.info['pid']}, CMD: {cmd}")
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+    except Exception as e:
+        logger.error(f"Error logging processes: {str(e)}")
 
 ######################## Misc. #########################################################
 
@@ -540,18 +550,67 @@ def computer_metrics():
             'Physical Memory': 'Error',
             'Virtual Memory': 'Error'
         }
+def run_powershell_command(command):
+    """Centralized function to run PowerShell commands"""
+    try:
+        # Use full path to PowerShell
+        powershell_path = r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+        
+        if not os.path.exists(powershell_path):
+            logger.error(f"PowerShell not found at: {powershell_path}")
+            return None
+
+        logger.debug(f"Executing PowerShell command: {command}")
+        flags = get_subprocess_flags()
+        
+        full_command = [
+            powershell_path,
+            "-NonInteractive",
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-Command",
+            command
+        ]
+        
+        result = subprocess.run(
+            full_command,
+            capture_output=True,
+            text=True,
+            **flags
+        )
+        
+        if result.stderr:
+            logger.error(f"PowerShell stderr: {result.stderr}")
+            
+        if result.returncode != 0:
+            logger.error(f"PowerShell command failed with return code: {result.returncode}")
+            return None
+            
+        return result
+        
+    except FileNotFoundError as e:
+        logger.error(f"PowerShell executable not found: {str(e)}")
+        return None
+    except subprocess.SubprocessError as e:
+        logger.error(f"Subprocess error running PowerShell: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in PowerShell command: {str(e)}")
+        return None
+
 
 @log_subprocess_call("check_task_scheduler_status")
 def check_task_scheduler_status():
     try:
-        ps_command = ["powershell", "-NonInteractive", "-Command", '''
+        ps_command = """
         $tasks = @{
-            'Root' = Get-ScheduledTask | Where-Object { $_.TaskPath -eq '\' };
+            'Root' = Get-ScheduledTask | Where-Object { $_.TaskPath -eq '\\' };
             'Sledgehammer' = Get-ScheduledTask | Where-Object { $_.TaskName -in ('LockFiles', 'WDU', 'Wub_task') };
             'WindowsUpdate' = Get-ScheduledTask | Where-Object { $_.TaskPath -like '*WindowsUpdate*' };
             'Defender' = Get-ScheduledTask | Where-Object { $_.TaskPath -like '*Windows Defender*' }
         }
-                $formattedTasks = @{}
+        
+        $formattedTasks = @{}
         foreach ($category in $tasks.Keys) {
             $formattedTasks[$category] = $tasks[$category] | ForEach-Object {
                 @{
@@ -565,8 +624,16 @@ def check_task_scheduler_status():
             }
         }
         $formattedTasks | ConvertTo-Json -Depth 3
-        ''']
-        result = subprocess.run(ps_command, **get_subprocess_flags(), capture_output=True, text=True)
+        """
+        
+        result = run_powershell_command(ps_command)
+        
+        if result and result.returncode == 0:
+            logger.error("PowerShell command failed")
+            data = json.loads(result.stdout)
+            
+        logger.debug("Completed task scheduler check")
+
         if result.returncode == 0:
             data = json.loads(result.stdout)
             formatted_tasks = []
@@ -604,7 +671,11 @@ def check_task_scheduler_status():
                     formatted_tasks.append(format_task_line(task['Name'], task['State']))
 
             return formatted_tasks
-            
+        
+        else:
+            logger.error(f"PowerShell command failed with return code: {result.returncode}")
+            return ["Error: Task scheduler command failed"]
+        
     except Exception as e:
         print(f"Debug - Error details: {str(e)}")
         return ["Error retrieving scheduled tasks"]
@@ -651,17 +722,17 @@ def format_task_scheduler_for_web(tasks_data):
     
 def windows_defender_status():
     try:
-        ps_command = ["powershell", "-NonInteractive", "-Command", """
+        ps_command = """
         $status = Get-MpComputerStatus | Select-Object -Property AMServiceEnabled,
             RealTimeProtectionEnabled,
             IoavProtectionEnabled,
             AntispywareEnabled,
             BehaviorMonitorEnabled
         $status | ConvertTo-Json
-        """]
-        process = subprocess.run(ps_command, **get_subprocess_flags(), capture_output=True, text=True)
+        """
+        process = run_powershell_command(ps_command)
         
-        if process.returncode == 0:
+        if process and process.returncode == 0:
             status = json.loads(process.stdout)
             return {
                 'Real-time Protection': 'ON' if status['RealTimeProtectionEnabled'] else 'OFF',
@@ -1018,6 +1089,7 @@ def main():
     print_summary()
 
 if __name__ == "__main__":
+    log_current_python_processes()
     if len(sys.argv) > 1 and sys.argv[1] == '--cli-only':
         print_summary()
     else:

@@ -1,0 +1,5 @@
+2024-12-27 12:55:11,615 - ProcessTracker - INFO - Application Starting
+2024-12-27 12:55:13,794 - ProcessTracker - INFO - Running with admin privileges
+2024-12-27 12:55:13,803 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-12-27 12:55:13,803 - werkzeug - INFO - [33mPress CTRL+C to quit[0m

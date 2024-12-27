@@ -1,0 +1,44 @@
+2024-12-27 12:56:20,534 - __main__ - DEBUG - Current Python processes:
+2024-12-27 12:56:20,715 - __main__ - DEBUG - PID: 1972, CMD: C:\Users\garrett.smith\Documents\GitHub\ARS_QC_TOOL\venv\Scripts\python.exe main_script.py
+2024-12-27 12:56:21,555 - __main__ - DEBUG - PID: 36708, CMD: C:\Users\garrett.smith\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe main_script.py
+2024-12-27 12:56:21,557 - __main__ - DEBUG - Starting subprocess call in check_windows_activation
+2024-12-27 12:56:21,825 - __main__ - DEBUG - Completed subprocess call in check_windows_activation
+2024-12-27 12:56:21,834 - tzlocal - DEBUG - Looking up time zone info from registry
+2024-12-27 12:56:21,858 - __main__ - DEBUG - Starting subprocess call in get_display_info
+2024-12-27 12:56:22,508 - __main__ - DEBUG - Completed subprocess call in get_display_info
+2024-12-27 12:56:22,510 - __main__ - DEBUG - Starting subprocess call in check_dhcp_status
+2024-12-27 12:56:22,547 - __main__ - DEBUG - Completed subprocess call in check_dhcp_status
+2024-12-27 12:56:23,114 - __main__ - DEBUG - Executing PowerShell command: 
+        $status = Get-MpComputerStatus | Select-Object -Property AMServiceEnabled,
+            RealTimeProtectionEnabled,
+            IoavProtectionEnabled,
+            AntispywareEnabled,
+            BehaviorMonitorEnabled
+        $status | ConvertTo-Json
+        
+2024-12-27 12:56:26,654 - __main__ - DEBUG - Starting subprocess call in check_task_scheduler_status
+2024-12-27 12:56:26,654 - __main__ - DEBUG - Executing PowerShell command: 
+        $tasks = @{
+            'Root' = Get-ScheduledTask | Where-Object { $_.TaskPath -eq '\' };
+            'Sledgehammer' = Get-ScheduledTask | Where-Object { $_.TaskName -in ('LockFiles', 'WDU', 'Wub_task') };
+            'WindowsUpdate' = Get-ScheduledTask | Where-Object { $_.TaskPath -like '*WindowsUpdate*' };
+            'Defender' = Get-ScheduledTask | Where-Object { $_.TaskPath -like '*Windows Defender*' }
+        }
+        
+        $formattedTasks = @{}
+        foreach ($category in $tasks.Keys) {
+            $formattedTasks[$category] = $tasks[$category] | ForEach-Object {
+                @{
+                    'Name' = $_.TaskName;
+                    'State' = $(
+                        if ($_.State -eq 'Ready') { '3 (Enabled)' }
+                        elseif ($_.State -eq 'Disabled') { '1 (Disabled)' }
+                        else { $_.State }
+                    )
+                }
+            }
+        }
+        $formattedTasks | ConvertTo-Json -Depth 3
+        
+2024-12-27 12:56:28,431 - __main__ - DEBUG - Completed task scheduler check
+2024-12-27 12:56:28,817 - __main__ - DEBUG - Completed subprocess call in check_task_scheduler_status

@@ -1,0 +1,21 @@
+2024-12-27 12:10:26,874 - __main__ - DEBUG - Current Python processes:
+2024-12-27 12:10:27,778 - __main__ - DEBUG - PID: 35508, CMD: C:\Users\garrett.smith\Documents\GitHub\ARS_QC_TOOL\venv\Scripts\python.exe main_script.py
+2024-12-27 12:10:27,784 - __main__ - DEBUG - PID: 36892, CMD: C:\Users\garrett.smith\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe main_script.py
+2024-12-27 12:10:27,786 - __main__ - DEBUG - Starting subprocess call in check_windows_activation
+2024-12-27 12:10:28,387 - __main__ - DEBUG - Completed subprocess call in check_windows_activation
+2024-12-27 12:10:28,397 - tzlocal - DEBUG - Looking up time zone info from registry
+2024-12-27 12:10:28,421 - __main__ - DEBUG - Starting subprocess call in get_display_info
+2024-12-27 12:10:29,098 - __main__ - DEBUG - Completed subprocess call in get_display_info
+2024-12-27 12:10:29,100 - __main__ - DEBUG - Starting subprocess call in check_dhcp_status
+2024-12-27 12:10:29,139 - __main__ - DEBUG - Completed subprocess call in check_dhcp_status
+2024-12-27 12:10:29,709 - __main__ - DEBUG - Checking Windows Defender status
+2024-12-27 12:10:30,273 - __main__ - DEBUG - Defender: Executing PowerShell command:
+2024-12-27 12:10:30,273 - __main__ - DEBUG - Command: ['powershell', '-NonInteractive', '-Command', '\n        $status = Get-MpComputerStatus | Select-Object -Property AMServiceEnabled,\n            RealTimeProtectionEnabled,\n            IoavProtectionEnabled,\n            AntispywareEnabled,\n            BehaviorMonitorEnabled\n        $status | ConvertTo-Json\n        ']
+2024-12-27 12:10:30,274 - __main__ - ERROR - Error running PowerShell command: expected str, bytes or os.PathLike object, not list
+2024-12-27 12:10:33,455 - __main__ - DEBUG - Starting subprocess call in check_task_scheduler_status
+2024-12-27 12:10:33,455 - __main__ - DEBUG - Starting task scheduler check
+2024-12-27 12:10:33,456 - __main__ - DEBUG - TaskScheduler: Executing PowerShell command:
+2024-12-27 12:10:33,456 - __main__ - DEBUG - Command: ['powershell', '-NonInteractive', '-Command', "\n        $tasks = @{\n            'Root' = Get-ScheduledTask | Where-Object { $_.TaskPath -eq '' };\n            'Sledgehammer' = Get-ScheduledTask | Where-Object { $_.TaskName -in ('LockFiles', 'WDU', 'Wub_task') };\n            'WindowsUpdate' = Get-ScheduledTask | Where-Object { $_.TaskPath -like '*WindowsUpdate*' };\n            'Defender' = Get-ScheduledTask | Where-Object { $_.TaskPath -like '*Windows Defender*' }\n        }\n                $formattedTasks = @{}\n        foreach ($category in $tasks.Keys) {\n            $formattedTasks[$category] = $tasks[$category] | ForEach-Object {\n                @{\n                    'Name' = $_.TaskName;\n                    'State' = $(\n                        if ($_.State -eq 'Ready') { '3 (Enabled)' }\n                        elseif ($_.State -eq 'Disabled') { '1 (Disabled)' }\n                        else { $_.State }\n                    )\n                }\n            }\n        }\n        $formattedTasks | ConvertTo-Json -Depth 3\n        "]
+2024-12-27 12:10:33,456 - __main__ - ERROR - Error running PowerShell command: expected str, bytes or os.PathLike object, not list
+2024-12-27 12:10:33,457 - __main__ - DEBUG - Completed task scheduler check
+2024-12-27 12:10:35,158 - __main__ - DEBUG - Completed subprocess call in check_task_scheduler_status
