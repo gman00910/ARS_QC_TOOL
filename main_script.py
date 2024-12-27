@@ -37,6 +37,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+def get_subprocess_flags():
+    return {
+        'creationflags': subprocess.CREATE_NO_WINDOW,
+        'shell': False,
+        'startupinfo': subprocess.STARTUPINFO(
+            dwFlags=subprocess.STARTF_USESHOWWINDOW,
+            wShowWindow=subprocess.SW_HIDE
+        )
+    }
+
+
 def log_subprocess_call(func_name):
     def decorator(f):
         def wrapper(*args, **kwargs):
@@ -62,21 +74,13 @@ def get_current_date():
 def get_computer_name():
     return socket.gethostname()
 
-# Option 1: Check if Windows is activated
+# Check if Windows is activated
 @log_subprocess_call("check_windows_activation")
 def check_windows_activation():
     try:
-        # Create startupinfo to hide window
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = subprocess.SW_HIDE
-
-        # Run command without shell
         result = subprocess.check_output(
             ["cscript", os.path.expandvars("%windir%\\system32\\slmgr.vbs"), "/xpr"],
-            shell=False,
-            startupinfo=startupinfo,
-            stderr=subprocess.STDOUT
+            **get_subprocess_flags()
         ).decode()
         
         if "The machine is permanently activated" in result:
@@ -89,7 +93,10 @@ def check_windows_activation():
 @log_subprocess_call("check_dhcp_status")
 def check_dhcp_status():
     try:
-        ip_config = subprocess.check_output("ipconfig /all", shell=False).decode()
+        ip_config = subprocess.check_output(
+            ["ipconfig", "/all"],
+            **get_subprocess_flags()
+        ).decode()
         interfaces = {}
         current_interface = None
         
@@ -533,18 +540,18 @@ def computer_metrics():
             'Physical Memory': 'Error',
             'Virtual Memory': 'Error'
         }
-    
+
+@log_subprocess_call("check_task_scheduler_status")
 def check_task_scheduler_status():
     try:
-        ps_command = r'''
+        ps_command = ["powershell", "-NonInteractive", "-Command", '''
         $tasks = @{
             'Root' = Get-ScheduledTask | Where-Object { $_.TaskPath -eq '\' };
             'Sledgehammer' = Get-ScheduledTask | Where-Object { $_.TaskName -in ('LockFiles', 'WDU', 'Wub_task') };
             'WindowsUpdate' = Get-ScheduledTask | Where-Object { $_.TaskPath -like '*WindowsUpdate*' };
             'Defender' = Get-ScheduledTask | Where-Object { $_.TaskPath -like '*Windows Defender*' }
         }
-        
-        $formattedTasks = @{}
+                $formattedTasks = @{}
         foreach ($category in $tasks.Keys) {
             $formattedTasks[$category] = $tasks[$category] | ForEach-Object {
                 @{
@@ -558,8 +565,8 @@ def check_task_scheduler_status():
             }
         }
         $formattedTasks | ConvertTo-Json -Depth 3
-        '''
-        result = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_command], shell=False, capture_output=True, text=True)
+        ''']
+        result = subprocess.run(ps_command, **get_subprocess_flags(), capture_output=True, text=True)
         if result.returncode == 0:
             data = json.loads(result.stdout)
             formatted_tasks = []
@@ -644,18 +651,15 @@ def format_task_scheduler_for_web(tasks_data):
     
 def windows_defender_status():
     try:
-        ps_command = """
+        ps_command = ["powershell", "-NonInteractive", "-Command", """
         $status = Get-MpComputerStatus | Select-Object -Property AMServiceEnabled,
             RealTimeProtectionEnabled,
             IoavProtectionEnabled,
             AntispywareEnabled,
             BehaviorMonitorEnabled
         $status | ConvertTo-Json
-        """
-        process = subprocess.run(
-            ["powershell", "-Command", ps_command],
-            capture_output=True,
-            text=True)
+        """]
+        process = subprocess.run(ps_command, **get_subprocess_flags(), capture_output=True, text=True)
         
         if process.returncode == 0:
             status = json.loads(process.stdout)
@@ -670,9 +674,9 @@ def windows_defender_status():
 
 def check_firewall_status():
     try:
-        ps_command = "Get-NetFirewallProfile | Select-Object Name, Enabled | ConvertTo-Json"
-        result = subprocess.run(["powershell", "-Command", ps_command], shell=False, capture_output=True, text=True)
-        
+        ps_command = ["powershell", "-NonInteractive", "-Command",
+                     "Get-NetFirewallProfile | Select-Object Name, Enabled | ConvertTo-Json"]
+        result = subprocess.run(ps_command, **get_subprocess_flags(), capture_output=True, text=True)
         if result.returncode == 0:
             profiles = json.loads(result.stdout)
             if isinstance(profiles, dict):
@@ -800,15 +804,9 @@ def check_defrag_settings():
 
 def get_network_profile():
     try:
-        ps_command = """
-        Get-NetConnectionProfile | Select-Object InterfaceAlias, NetworkCategory | ConvertTo-Json
-        """
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_command],
-            capture_output=True,
-            text=True,
-            shell=False
-        )
+        ps_command = ["powershell", "-NonInteractive", "-Command",
+                     "Get-NetConnectionProfile | Select-Object InterfaceAlias, NetworkCategory | ConvertTo-Json"]
+        result = subprocess.run(ps_command, **get_subprocess_flags(), capture_output=True, text=True)
         
         if result.returncode == 0:
             profiles = json.loads(result.stdout)
@@ -826,13 +824,10 @@ def get_network_profile():
         return {"Error": f"Failed to get network profile: {str(e)}"}
 
 def is_windows_update_enabled():
-    ps_command = "Get-Service -Name wuauserv | Select-Object -ExpandProperty Status"
-    result = subprocess.run(
-        ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_command],
-        capture_output=True,
-        text=True,
-        shell=False
-    )
+    ps_command = ["powershell", "-NonInteractive", "-Command",
+                 "Get-Service -Name wuauserv | Select-Object -ExpandProperty Status"]
+    result = subprocess.run(ps_command, **get_subprocess_flags(), capture_output=True, text=True)
+    
     if result.returncode == 0:
         status = result.stdout.strip()
         if status == "Running":

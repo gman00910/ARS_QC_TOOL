@@ -18,6 +18,16 @@ import tempfile
 from colorama import Fore, Style
 import time
 
+def get_subprocess_flags():
+    return {
+        'creationflags': subprocess.CREATE_NO_WINDOW,
+        'shell': False,
+        'startupinfo': subprocess.STARTUPINFO(
+            dwFlags=subprocess.STARTF_USESHOWWINDOW,
+            wShowWindow=subprocess.SW_HIDE
+        )
+    }
+
 def is_admin():
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
@@ -34,6 +44,20 @@ if not is_admin():
                          "RunAs"], 
                         creationflags=subprocess.CREATE_NO_WINDOW)
         sys.exit(0)
+
+def run_as_admin():
+    if not is_admin():
+        if sys.platform == 'win32':
+            ctypes.windll.shell32.ShellExecuteW(
+                None,
+                "runas",
+                sys.executable,
+                f'"{sys.argv[0]}"',
+                None,
+                1
+            )
+            sys.exit(0)
+    return True
 
 app = Flask(__name__, 
            static_url_path='/static',
@@ -156,7 +180,7 @@ def run_viblib_route():
         
         for path in preset_paths:
             if os.path.exists(path):
-                subprocess.Popen([path], creationflags=subprocess.CREATE_NEW_CONSOLE)
+                subprocess.Popen([path], **get_subprocess_flags())
                 return jsonify({"success": True})
                 
         return jsonify({"success": False, "error": "VibLib executable not found"})
@@ -302,24 +326,21 @@ def run_ars_route():
             r"C:\ARS\ars.exe"
         ]
         
-        # Try cmd first
         for path in cmd_paths:
             if os.path.exists(path):
                 start_dir = os.path.dirname(path)
                 subprocess.Popen(
                     [path],
                     cwd=start_dir,
-                    shell=True,
-                    creationflags=subprocess.CREATE_NEW_CONSOLE
+                    **get_subprocess_flags()
                 )
                 return jsonify({"success": True})
                 
-        # Fall back to exe if cmd not found
         for path in exe_paths:
             if os.path.exists(path):
                 subprocess.Popen(
                     [path],
-                    creationflags=subprocess.CREATE_NEW_CONSOLE
+                    **get_subprocess_flags()
                 )
                 return jsonify({"success": True})
                 
@@ -394,24 +415,15 @@ def minimize_console():
 #     return response
 
 if __name__ == '__main__':
-    if is_admin():
-        # Check if we're running in CLI-only mode
+    if run_as_admin():
         if len(sys.argv) > 1 and sys.argv[1] == '--cli-only':
             main_script.print_summary()
         else:
-            # Start the web server first
             server_thread = Thread(target=lambda: app.run(host='127.0.0.1', port=5000))
             server_thread.daemon = True
             server_thread.start()
-            
-            # Wait a moment for Flask to start
             time.sleep(1)
-            
-            # Then open browser and minimize console
             open_browser()
-           # minimize_console()
-            
-            # Keep the main thread running
             try:
                 while True:
                     time.sleep(1)
