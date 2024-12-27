@@ -15,6 +15,42 @@ import pythoncom
 from pathlib import Path
 import winshell
 import winreg
+
+
+import logging
+import os
+from datetime import datetime
+
+# Create logs directory if it doesn't exist
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+
+# Setup logging to both file and console
+log_filename = os.path.join('logs', f'subprocess_debug_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_filename),
+        logging.StreamHandler()  # This will print to console
+    ]
+)
+logger = logging.getLogger(__name__)
+
+def log_subprocess_call(func_name):
+    def decorator(f):
+        def wrapper(*args, **kwargs):
+            logger.debug(f"🔄 Starting subprocess call in {func_name}")
+            try:
+                result = f(*args, **kwargs)
+                logger.debug(f"✅ Finished subprocess call in {func_name}")
+                return result
+            except Exception as e:
+                logger.error(f"❌ Error in {func_name}: {str(e)}")
+                raise
+        return wrapper
+    return decorator
+
 ######################## Misc. #########################################################
 
 # Function to get the current date in the format MMDDYYYY for backup naming
@@ -27,20 +63,33 @@ def get_computer_name():
     return socket.gethostname()
 
 # Option 1: Check if Windows is activated
+@log_subprocess_call("check_windows_activation")
 def check_windows_activation():
     try:
-        result = subprocess.check_output("cscript %windir%\\system32\\slmgr.vbs /xpr", shell=True).decode()
+        # Create startupinfo to hide window
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+
+        # Run command without shell
+        result = subprocess.check_output(
+            ["cscript", os.path.expandvars("%windir%\\system32\\slmgr.vbs"), "/xpr"],
+            shell=False,
+            startupinfo=startupinfo,
+            stderr=subprocess.STDOUT
+        ).decode()
+        
         if "The machine is permanently activated" in result:
             return "Windows is activated."
         else:
-            return "Windows is NOT activated. Sorry, best of luck with that."
+            return "Windows is NOT activated."
     except Exception as e:
-        print(f"Couldn't check activation status: {str(e)}")
-        return "Couldn't check activation status. Please check the command prompt for details."
+        return f"Couldn't check activation status: {str(e)}"
 
+@log_subprocess_call("check_dhcp_status")
 def check_dhcp_status():
     try:
-        ip_config = subprocess.check_output("ipconfig /all", shell=True).decode()
+        ip_config = subprocess.check_output("ipconfig /all", shell=False).decode()
         interfaces = {}
         current_interface = None
         
@@ -121,15 +170,16 @@ def get_time_zone():
         print(f"Couldn't get time zone: {str(e)}")  # Print error to command prompt
         return "Couldn't get time zone. Please check the command prompt for details."
 
+@log_subprocess_call("get_display_info")
 def get_display_info():
     try:
         # Get display adapters
-        adapter_result = subprocess.check_output("wmic path Win32_VideoController get Name", shell=True).decode()
+        adapter_result = subprocess.check_output("wmic path Win32_VideoController get Name", shell=False).decode()
         adapter_lines = adapter_result.strip().split("\n")[1:]  # Skip header
         adapters = [line.strip() for line in adapter_lines if line.strip()]
 
         # Get resolution and refresh rates for each adapter
-        resolution_result = subprocess.check_output("wmic path Win32_VideoController get VideoModeDescription,Name", shell=True).decode()
+        resolution_result = subprocess.check_output("wmic path Win32_VideoController get VideoModeDescription,Name", shell=False).decode()
         resolution_lines = resolution_result.strip().split("\n")[1:]  # Skip header
         
         display_info = []
@@ -264,6 +314,7 @@ def get_latest_version(files, prefix):
 ####################### Change Settings Functions ########################
 
 # Change PC name
+@log_subprocess_call("set_pc_name")
 def set_pc_name(new_name):
     try:
         commands = [
@@ -274,7 +325,7 @@ def set_pc_name(new_name):
         ]
         
         for cmd in commands:
-            subprocess.run(cmd, shell=True, capture_output=True, check=False)
+            subprocess.run(cmd, shell=False, capture_output=True, check=False)
             
         return f"PC name changed to {new_name}. Please restart for changes to take effect."
     except Exception as e:
@@ -331,7 +382,7 @@ def get_available_timezones():
             'W. Europe Standard Time'     # Western Europe
         ]
         
-        result = subprocess.run(['tzutil', '/l'], capture_output=True, text=True)
+        result = subprocess.run(['tzutil', '/l'], shell=False, capture_output=True, text=True)
         zones = result.stdout.split('\n')
         
         # Get all valid timezone IDs
@@ -349,7 +400,7 @@ def get_available_timezones():
 def change_time_zone(new_time_zone):
     try:
         print(f"Attempting to change to timezone: {new_time_zone}")  # Debug print
-        result = subprocess.run(['tzutil', '/l'], capture_output=True, text=True)
+        result = subprocess.run(['tzutil', '/l'], shell=False, capture_output=True, text=True)
         available_zones = result.stdout.split('\n')
         print(f"Available zones: {available_zones}")  # Debug print
         
@@ -381,7 +432,7 @@ def run_viblib():
     for path in preset_paths:
         if os.path.exists(path):
             try:
-                subprocess.run([path], check=True)
+                subprocess.run([path], shell=False, check=True)
                 return f"viblib_test.exe executed successfully from {path}."
             except subprocess.CalledProcessError as e:
                 print(f"Error executing viblib_test.exe: {str(e)}")  # Print error to command prompt
@@ -412,7 +463,7 @@ def run_ars():
                 subprocess.Popen(
                     [path, "-d"],
                     cwd=start_dir,
-                    shell=True,  # Required for .cmd files
+                    shell=False,  # Required for .cmd files
                     creationflags=subprocess.CREATE_NEW_CONSOLE  # Create new window
                 )
                 return f"ARS Loader executed successfully from {path}."
@@ -438,7 +489,8 @@ def get_com_ports():
         result = subprocess.run(
             ["powershell", "-Command", ps_command],
             capture_output=True,
-            text=True)
+            text=True,
+            shell=False)
             
         if result.returncode == 0:
             output = result.stdout.strip()
@@ -507,7 +559,7 @@ def check_task_scheduler_status():
         }
         $formattedTasks | ConvertTo-Json -Depth 3
         '''
-        result = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_command], capture_output=True, text=True)
+        result = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_command], shell=False, capture_output=True, text=True)
         if result.returncode == 0:
             data = json.loads(result.stdout)
             formatted_tasks = []
@@ -619,7 +671,7 @@ def windows_defender_status():
 def check_firewall_status():
     try:
         ps_command = "Get-NetFirewallProfile | Select-Object Name, Enabled | ConvertTo-Json"
-        result = subprocess.run(["powershell", "-Command", ps_command], capture_output=True, text=True)
+        result = subprocess.run(["powershell", "-Command", ps_command], shell=False, capture_output=True, text=True)
         
         if result.returncode == 0:
             profiles = json.loads(result.stdout)
@@ -699,7 +751,7 @@ def quick_drive_check():
         }
         $result | ConvertTo-Json
         """
-        result = subprocess.run(["powershell", "-Command", ps_command], capture_output=True, text=True)
+        result = subprocess.run(["powershell", "-Command", ps_command], shell=False, capture_output=True, text=True)
         
         if result.returncode == 0:
             drives = json.loads(result.stdout)
@@ -729,7 +781,8 @@ def check_defrag_settings():
         result = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_command],
             capture_output=True,
-            text=True
+            text=True,
+            shell=False
         )
         
         if result.returncode == 0:
@@ -753,7 +806,8 @@ def get_network_profile():
         result = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_command],
             capture_output=True,
-            text=True
+            text=True,
+            shell=False
         )
         
         if result.returncode == 0:
@@ -776,7 +830,8 @@ def is_windows_update_enabled():
     result = subprocess.run(
         ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_command],
         capture_output=True,
-        text=True
+        text=True,
+        shell=False
     )
     if result.returncode == 0:
         status = result.stdout.strip()
@@ -805,6 +860,17 @@ def check_notification_settings():
             return "Could not determine exact status - please check Windows Settings"
     except Exception as e:
         return f"Error accessing notification settings: {str(e)}"
+    
+
+
+
+
+
+
+
+
+
+
 ################## PRINT SUMMARY ##################################
 def print_summary():
     """Print a formatted summary of all system checks"""
