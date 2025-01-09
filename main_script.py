@@ -281,6 +281,39 @@ def set_pc_name(new_name):
     except Exception as e:
         return f"Error changing PC name: {str(e)}"
 
+# def change_ip_configuration(interface_name, use_dhcp=True, ip_address=None, subnet_mask=None, gateway=None):
+#     try:
+#         if use_dhcp:
+#             print(f"Debug: Changing to DHCP for {interface_name}")
+#             cmd = f'netsh interface ip set address name="{interface_name}" source=dhcp'
+#         else:
+#             if not ip_address:
+#                 return "IP address is required for static IP configuration."
+            
+#             # Build the static IP command
+#             cmd = f'netsh interface ip set address name="{interface_name}" static {ip_address} {subnet_mask}'
+#             if gateway:
+#                 cmd += f' {gateway}'
+
+#         # Execute with admin rights
+#         result = ctypes.windll.shell32.ShellExecuteW(
+#             None,
+#             "runas",
+#             "cmd.exe",
+#             f"/c {cmd}",
+#             None,
+#             1
+#         )
+        
+#         if result > 32:  # Success
+#             return "IP configuration changed successfully."
+#         else:
+#             return f"Failed to change IP configuration. Error code: {result}"
+            
+#     except Exception as e:
+#         print(f"Error: {str(e)}")
+#         return f"Failed to change IP configuration: {str(e)}"
+    
 def change_ip_configuration(interface_name, use_dhcp=True, ip_address=None, subnet_mask=None, gateway=None):
     try:
         if use_dhcp:
@@ -293,7 +326,9 @@ def change_ip_configuration(interface_name, use_dhcp=True, ip_address=None, subn
             # Build the static IP command
             cmd = f'netsh interface ip set address name="{interface_name}" static {ip_address} {subnet_mask}'
             if gateway:
-                cmd += f' {gateway}'
+                cmd += f' {gateway} 1'  # Added metric of 1 for gateway
+
+        print(f"Debug: Executing command: {cmd}")
 
         # Execute with admin rights
         result = ctypes.windll.shell32.ShellExecuteW(
@@ -306,15 +341,14 @@ def change_ip_configuration(interface_name, use_dhcp=True, ip_address=None, subn
         )
         
         if result > 32:  # Success
+            time.sleep(2)  # Give it a moment to apply changes
             return "IP configuration changed successfully."
         else:
             return f"Failed to change IP configuration. Error code: {result}"
             
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"Error in change_ip_configuration: {str(e)}")
         return f"Failed to change IP configuration: {str(e)}"
-    
-
 
 def get_available_timezones():
     try:
@@ -927,6 +961,10 @@ def print_summary():
         # Windows Update
         update_status = is_windows_update_enabled()
         print(f"\n  {Fore.CYAN}Windows Update:{Style.RESET_ALL} {Fore.GREEN if update_status == 'Enabled' else Fore.RED if update_status == 'Disabled' else Fore.YELLOW}{update_status}{Style.RESET_ALL}")
+        
+        # Windows Notification
+        update_statuss = check_notification_settings()
+        print(f"\n  {Fore.CYAN}Windows Notifications:{Style.RESET_ALL} {Fore.GREEN if update_statuss == 'Enabled' else Fore.RED if update_statuss == 'Disabled' else Fore.YELLOW}{update_statuss}{Style.RESET_ALL}")
 
         # TASK SCHEDULER
         print(f"\n{Fore.GREEN}{'='*20} TASK SCHEDULER {'='*20}{Style.RESET_ALL}")

@@ -18,12 +18,12 @@ from flask import make_response
 from functools import wraps
 import time
 from main_script import check_dhcp_status
+from functools import lru_cache
+from datetime import datetime, timedelta
 
 # Cache configuration
 cache = {}
-CACHE_DURATION = 30  # seconds
 EXCLUDED_PATHS = {'/change_ip', '/change/<setting>'} 
-
 
 
 def is_admin():
@@ -31,6 +31,7 @@ def is_admin():
         return ctypes.windll.shell32.IsUserAnAdmin()
     except:
         return False
+
 
 if not is_admin():
     if sys.platform == 'win32':
@@ -47,8 +48,8 @@ app = Flask(__name__,
            static_url_path='/static',
            static_folder='static',
            template_folder='templates')
-    
 
+CACHE_DURATION = 300
 
 def cache_control(max_age=30):
     def decorator(view_function):
@@ -83,77 +84,88 @@ def cache_control(max_age=30):
         return wrapped_function
     return decorator
 
+@lru_cache(maxsize=1)
+def get_cached_system_info():
+    task_scheduler_data = main_script.check_task_scheduler_status() 
+    return {
+        'Computer Name': main_script.get_computer_name(),
+        'Windows Activation': main_script.check_windows_activation(),
+        'Task Scheduler Status': main_script.format_task_scheduler_for_web(task_scheduler_data),
+        'Display Info': main_script.get_display_info(),
+        'ARS Version': main_script.get_ars_version(),
+        'Boot Drive Version': main_script.get_boot_drive_version(),
+        'COM Ports': main_script.get_com_ports(),
+        'ARS Shortcut': main_script.check_ars_shortcut(),
+        'VIB Version': main_script.get_vib_version(),
+        'FX3 Version': main_script.get_fx3_version(),
+        'Computer Metrics': main_script.computer_metrics(),
+        'Windows Defender Status': main_script.windows_defender_status(),
+        'Firewall Status': main_script.check_firewall_status(), 
+        'Defrag Status': main_script.check_defrag_settings(),
+        'Drive Health': main_script.quick_drive_check(),
+        'Network Profile': main_script.get_network_profile(),
+        'Windows Update': main_script.is_windows_update_enabled(),
+        'Windows Notifications': main_script.check_notification_settings()
+    }
+
+
+
+# def clear_cache():
+#     get_cached_system_info.cache_clear()
+
+# @app.before_first_request
+# def setup_cache_clearing():
+#     from apscheduler.schedulers.background import BackgroundScheduler
+#     scheduler = BackgroundScheduler()
+#     scheduler.add_job(func=clear_cache, trigger="interval", seconds=CACHE_DURATION)
+#     scheduler.start()
 
 
 @app.route('/')
 @cache_control(max_age=30)
 def index():
-    dhcp_info = main_script.check_dhcp_status()
-    network_profiles = main_script.get_network_profile()
-    # task_scheduler_data = main_script.check_task_scheduler_status()
-    # print("Debug - Raw task data:", task_scheduler_data)  # Debug print
-    task_scheduler_data = main_script.check_task_scheduler_status()
-    
-    
-    ### FOR DEBUGGING PURPOSES ONLY ####
-    
-    #try:
-        #dhcp_info = main_script.check_dhcp_status()
-        #app.logger.debug(f"DHCP info: {dhcp_info}")
-        
-        #network_profiles = main_script.get_network_profile()
-        #app.logger.debug(f"Network profiles: {network_profiles}")
-        
-        # Add debugging before formatting
-        #app.logger.debug(f"Task scheduler data type: {type(task_scheduler_data)}")
-        
-        #formatted_tasks = main_script.format_task_scheduler_for_web(task_scheduler_data)
-        #app.logger.debug(f"Formatted task data: {formatted_tasks}")
-        
-    #except Exception as e:
-     #   app.logger.error(f"Error in index route: {str(e)}", exc_info=True)
-     #   return f"Error: {str(e)}", 500
-        
-        
-    #2nd task scheduler debugger - maybe delete???
-    #if task_scheduler_data is None:
-    #    print("Debug - No task scheduler data returned")
-    #    task_scheduler_formatted = ['<div class="task-error">Error retrieving task scheduler data</div>']
-    #else:
-    #    task_scheduler_formatted = main_script.format_task_scheduler_for_web(task_scheduler_data)
-        
-    # Merge network profile info into DHCP info
-    if isinstance(dhcp_info, dict) and isinstance(network_profiles, dict):
-        for interface_name, interface_info in dhcp_info.items():
-            # Find matching interface in network_profiles
-            for profile_name, category in network_profiles.items():
-                if profile_name in interface_name:
-                    # Add category to Type
-                    interface_info['Type'] = f"{interface_info['Type']} (Category: {category})"
     try:
+        # Get cached data
+        cached_info = get_cached_system_info()
+        
+        # Get real-time data that shouldn't be cached
+        dhcp_info = main_script.check_dhcp_status()
+        network_profiles = main_script.get_network_profile()
+        task_scheduler_data = main_script.check_task_scheduler_status()  
+            
+        # Merge network profile info into DHCP info
+        if isinstance(dhcp_info, dict) and isinstance(network_profiles, dict):
+            for interface_name, interface_info in dhcp_info.items():
+                for profile_name, category in network_profiles.items():
+                    if profile_name in interface_name:
+                        interface_info['Type'] = f"{interface_info['Type']} (Category: {category})"
+
+        # Create result using ALL the original data points but use cached where possible
         result = {
-            'Computer Name': main_script.get_computer_name(),
-            'Windows Activation': main_script.check_windows_activation(),
+            'Computer Name': cached_info['Computer Name'],
+            'Windows Activation': cached_info['Windows Activation'],
             'Task Scheduler Status': main_script.format_task_scheduler_for_web(task_scheduler_data),
-            'IP Configuration': main_script.check_dhcp_status(), 
+            'IP Configuration': dhcp_info, 
             'Time Zone': main_script.get_time_zone(),
-            'Display Info': main_script.get_display_info(),
-            'ARS Version': main_script.get_ars_version(),
-            'Boot Drive Version': main_script.get_boot_drive_version(),
-            'COM Ports': main_script.get_com_ports(),
-            'ARS Shortcut': main_script.check_ars_shortcut(),
-            'VIB Version': main_script.get_vib_version(),
-            'FX3 Version': main_script.get_fx3_version(),
-            'Computer Metrics': main_script.computer_metrics(),
-            'Windows Defender Status': main_script.windows_defender_status(),
-            'Firewall Status': main_script.check_firewall_status(), 
-            'Defrag Status': main_script.check_defrag_settings(),
-            'Drive Health': main_script.quick_drive_check(),
-            'Network Profile': main_script.get_network_profile(),
-            'Windows Update': main_script.is_windows_update_enabled(),
-            'Windows Notifications': main_script.check_notification_settings()
-            }
+            'Display Info': cached_info['Display Info'],
+            'ARS Version': cached_info['ARS Version'],
+            'Boot Drive Version': cached_info['Boot Drive Version'],
+            'COM Ports': cached_info['COM Ports'],
+            'ARS Shortcut': cached_info['ARS Shortcut'],
+            'VIB Version': cached_info['VIB Version'],
+            'FX3 Version': cached_info['FX3 Version'],
+            'Computer Metrics': cached_info['Computer Metrics'],
+            'Windows Defender Status': cached_info['Windows Defender Status'],
+            'Firewall Status': cached_info['Firewall Status'], 
+            'Defrag Status': cached_info['Defrag Status'],
+            'Drive Health': cached_info['Drive Health'],
+            'Network Profile': network_profiles,
+            'Windows Update': cached_info['Windows Update'],
+            'Windows Notifications': cached_info['Windows Notifications']
+        }
+        
         return render_template('index.html', result=result)
+        
     except Exception as e:
         print(f"Error in route: {str(e)}")
         return "Error loading page", 500
@@ -165,14 +177,18 @@ def change_setting(setting):
             if setting == 'time_zone':
                 new_timezone = request.form.get('new_value')
                 result = main_script.change_time_zone(new_timezone)
-                # Return JSON response instead of redirecting
-                return jsonify({'success': True, 'message': result})
+                # Instead of redirecting, return JSON
+                return jsonify({
+                    'success': True,
+                    'message': result,
+                    'newTimezone': new_timezone
+                })
         
         if setting == 'time_zone':
             timezones = main_script.get_available_timezones()
             return render_template('change_setting.html', setting=setting, timezones=timezones)
         
-        return "Setting not supported for changes", 400
+        return jsonify({'success': False, 'error': 'Setting not supported'}), 400
         
     except Exception as e:
         print(f"Error in change_setting route: {str(e)}")
@@ -207,30 +223,50 @@ def run_viblib_route():
 
 
 
+# @app.route('/change_ip', methods=['GET', 'POST'])
+# def change_ip():
+#     if request.method == 'POST':
+#         interface_name = request.form.get('interface_name')
+#         use_dhcp = request.form.get('use_dhcp') == 'true'
+#         ip_address = request.form.get('ip_address')
+#         subnet_mask = request.form.get('subnet_mask')
+#         gateway = request.form.get('gateway')
+        
+#         result = main_script.change_ip_configuration(
+#             interface_name, use_dhcp, ip_address, subnet_mask, gateway
+#         )
+        
+#         return jsonify({
+#             'success': 'Failed' not in result,
+#             'message': result
+#         })
+    
+#     interfaces = main_script.check_dhcp_status()
+#     return render_template('change_ip.html', interfaces=interfaces)
 @app.route('/change_ip', methods=['GET', 'POST'])
 def change_ip():
     if request.method == 'POST':
-        interface_name = request.form.get('interface_name')
-        use_dhcp = request.form.get('use_dhcp') == 'true'
-        ip_address = request.form.get('ip_address')
-        subnet_mask = request.form.get('subnet_mask')
-        gateway = request.form.get('gateway')
-        
-        result = main_script.change_ip_configuration(
-            interface_name, use_dhcp, ip_address, subnet_mask, gateway
-        )
-        
-        # Clear cache after IP change
-        cache.clear()
-        
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'result': result, 'success': 'Failed' not in result})
-        
-        return redirect(url_for('index'))
+            interface_name = request.form.get('interface_name')
+            use_dhcp = request.form.get('use_dhcp') == 'true'
+            ip_address = request.form.get('ip_address')
+            subnet_mask = request.form.get('subnet_mask')
+            gateway = request.form.get('gateway')
+            
+            result = main_script.change_ip_configuration(
+                interface_name, use_dhcp, ip_address, subnet_mask, gateway
+            )
+            
+            return jsonify({
+                'success': 'Failed' not in result,
+                'message': result
+            })
     
+    # GET request - make sure we have interfaces data
     interfaces = main_script.check_dhcp_status()
+    if isinstance(interfaces, dict):
+        interfaces = {'IP Configuration': interfaces}  # Match the structure expected by the template
     return render_template('change_ip.html', interfaces=interfaces)
-
 
 @app.route('/open_command_prompt')
 def open_command_prompt():
@@ -451,16 +487,19 @@ def check_timezone():
 
 
 if __name__ == '__main__':
-    if is_admin():
-        # Pre-load data to avoid multiple subprocess calls
-        #app.config['task_data'] = main_script.check_task_scheduler_status()
-        
-        # Start browser after data is loaded
-        Timer(0.1, open_browser).start()
-        Timer(0.1, minimize_console).start()
-        
-        #webbrowser.open('http://127.0.0.1:5000')
-        app.run(host='127.0.0.1', port=5000)
+    try:
+        if is_admin():
+            # Pre-load data to avoid multiple subprocess calls
+            #app.config['task_data'] = main_script.check_task_scheduler_status()
+            
+            # Start browser after data is loaded
+            Timer(0.1, open_browser).start()
+            Timer(0.1, minimize_console).start()
+            
+            #webbrowser.open('http://127.0.0.1:5000')
+            app.run(host='127.0.0.1', port=5000)
 
-
+    except Exception as e:
+        print(f"Startup Error: {str(e)}")
+        input("Press Enter to exit...")  # This will keep the window open
 

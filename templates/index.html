@@ -335,8 +335,45 @@
 
         </script>
     </style>
+    <!-- <style>
+        #main-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 26, 26, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #333;
+            border-radius: 50%;
+            border-top: 5px solid #ff6600;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style> -->
 </head>
 <body>
+    <!-- <div id="main-loader">
+        <div class="loader"></div>
+    </div> -->
     <div class="header">
         <img src="{{ url_for('static', filename='images/logo-shotover.png') }}" alt="Shotover Logo" class="logo">
         <h1>DRIVE SUMMARY</h1>
@@ -370,7 +407,7 @@
                             <div>Subnet Mask: {{ status.get('Subnet Mask', 'N/A') }}</div>
                             <div>Gateway: {{ status.get('Gateway', 'N/A') }}</div>
                         </div>
-                        <a href="{{ url_for('change_ip') }}" class="summary-button compact" style="margin-left: 20px;">Change IP</a>
+                        <a href="{{ url_for('change_ip') }}" class="summary-button compact" style="margin-left: 20px;">Change IP (NEEDS DEV)</a>
                     </div>
                 {% endfor %}
             {% else %}
@@ -388,10 +425,12 @@
         <div class="summary-text">
             <div class="divider"></div>
             <strong>Time Zone:</strong>
-            <div class="status-label" style="text-align: center;">
-                {{ result.get('Time Zone', 'N/A') }}
-                <div style="margin-top: 10px;">
-                    <a href="{{ url_for('change_setting', setting='time_zone') }}" class="summary-button compact">Change Time Zone</a>
+            <div class="timezone-section">  <!-- Add this wrapper -->
+                <div class="status-label" style="text-align: center;">
+                    {{ result.get('Time Zone', 'N/A') }}
+                    <div style="margin-top: 10px;">
+                        <a href="{{ url_for('change_setting', setting='time_zone') }}" class="summary-button compact">Change Time Zone (works, doesnt update)</a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -600,30 +639,31 @@
 
     <script>
         window.addEventListener('message', function(event) {
-            if (event.data === 'timezone_updated') {
-                fetch('/check_timezone', {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => response.text())
-                .then(html => {
-                    document.querySelector('.timezone-section').innerHTML = html;
-                });
-            }
-        });
-
-        window.addEventListener('message', function(event) {
-            if (event.data === 'network_updated') {
-                fetch('/check_network', {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => response.text())
-                .then(html => {
-                    document.querySelector('.network-section').innerHTML = html;
-                });
+            if (event.data === 'timezone_updated' || event.data === 'network_updated') {
+                // Only refresh the sections that changed
+                if (event.data === 'timezone_updated') {
+                    fetch('/check_timezone', {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.text())
+                    .then(html => {
+                        document.querySelector('.timezone-section').innerHTML = html;
+                    });
+                }
+                
+                if (event.data === 'network_updated') {
+                    fetch('/check_network', {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.text())
+                    .then(html => {
+                        document.querySelector('.network-section').innerHTML = html;
+                    });
+                }
             }
         });
         function refreshNetworkSection() {
@@ -664,7 +704,7 @@
             });
         }
 
-    // Update your DOMContentLoaded event listener
+        // Update your DOMContentLoaded event listener
         document.addEventListener('DOMContentLoaded', function() {
             // Your existing IP forms code
             const ipForms = document.querySelectorAll('a[href*="change_ip"]');
@@ -684,6 +724,48 @@
         });
 
     </script>
+    <!-- <script>
+    // Improved loader script
+    document.addEventListener('DOMContentLoaded', function() {
+        const loader = document.getElementById('main-loader');
+        
+        // Function to hide loader
+        function hideLoader() {
+            if (loader) {
+                loader.classList.add('hidden');
+                
+                // Completely remove the loader after transition
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                }, 500);
+            }
+        }
 
+        // Try multiple methods to ensure loader is hidden
+        window.addEventListener('load', hideLoader);
+        
+        // Fallback methods
+        setTimeout(hideLoader, 5000); // Force hide after 5 seconds
+        
+        // Additional check for fully loaded resources
+        if (document.readyState === 'complete') {
+            hideLoader();
+        } else {
+            window.addEventListener('loadstart', hideLoader);
+            window.addEventListener('complete', hideLoader);
+        }
+    });
+
+    // For network updates (keep existing network update logic)
+    window.addEventListener('message', function(event) {
+        if (event.data === 'network_updated') {
+            const loader = document.getElementById('main-loader');
+            loader.classList.remove('hidden');
+            setTimeout(() => {
+                location.reload();
+            }, 500);
+        }
+    });
+    </script> -->
 </body>
 </html>
