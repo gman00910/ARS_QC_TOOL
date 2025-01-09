@@ -1,0 +1,6 @@
+<div class="status-label" style="text-align: center;">
+    {{ result.get('Time Zone', 'N/A') }}
+    <div style="margin-top: 10px;">
+        <a href="{{ url_for('change_setting', setting='time_zone') }}" class="summary-button compact">Change Time Zone</a>
+    </div>
+</div>

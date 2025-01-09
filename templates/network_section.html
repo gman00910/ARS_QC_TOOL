@@ -1,0 +1,18 @@
+{% if result['IP Configuration'] is mapping %}
+    {% for interface, status in result['IP Configuration'].items() %}
+        <div class="summary-text">
+            <strong>{{ interface }}:</strong>
+            <div class="status-label">
+                <div>Type: {{ status.get('Type', 'N/A') }}</div>
+                <div>DHCP: {{ status['DHCP'] }}</div>
+                {% if status['DNS Suffix'] %}
+                    <div>DNS Suffix: {{ status['DNS Suffix'] }}</div>
+                {% endif %}
+                <div>IP: {{ status['IP'] }}</div>
+                <div>Subnet Mask: {{ status.get('Subnet Mask', 'N/A') }}</div>
+                <div>Gateway: {{ status.get('Gateway', 'N/A') }}</div>
+            </div>
+            <a href="{{ url_for('change_ip') }}" class="summary-button compact" style="margin-left: 20px;">Change IP</a>
+        </div>
+    {% endfor %}
+{% endif %}

@@ -318,6 +318,8 @@
                 console.error('Error:', error);
             });
         }
+
+
         window.onload = function() {
             window.moveTo(0, 0);
             window.resizeTo(screen.availWidth, screen.availHeight);
@@ -330,6 +332,7 @@
                     });
             }
         };
+
         </script>
     </style>
 </head>
@@ -352,32 +355,28 @@
 
     <div class="summary-box">
         <div class="version-box-title">Network Configuration</div>
-        {% if result['IP Configuration'] is mapping %}
-            {% for interface, status in result['IP Configuration'].items() %}
-                <div class="summary-text">
-                    <strong>{{ interface }}:</strong>
-                    <div class="status-label">
-                        <div>Type: {{ status.get('Type', 'N/A') }}</div>
-                        <div>DHCP: {{ status['DHCP'] }}</div>
-                        {% if status['DNS Suffix'] %}
-                            <div>DNS Suffix: {{ status['DNS Suffix'] }}</div>
-                        {% endif %}
-                        <div>IP: {{ status['IP'] }}</div>
-                        {% if status['DHCP'] == 'Disabled' %}
+        <div class="network-section">  <!-- Added this wrapper div -->
+            {% if result['IP Configuration'] is mapping %}
+                {% for interface, status in result['IP Configuration'].items() %}
+                    <div class="summary-text">
+                        <strong>{{ interface }}:</strong>
+                        <div class="status-label">
+                            <div>Type: {{ status.get('Type', 'N/A') }}</div>
+                            <div>DHCP: {{ status['DHCP'] }}</div>
+                            {% if status['DNS Suffix'] %}
+                                <div>DNS Suffix: {{ status['DNS Suffix'] }}</div>
+                            {% endif %}
+                            <div>IP: {{ status['IP'] }}</div>
                             <div>Subnet Mask: {{ status.get('Subnet Mask', 'N/A') }}</div>
                             <div>Gateway: {{ status.get('Gateway', 'N/A') }}</div>
-                        {% endif %}
+                        </div>
+                        <a href="{{ url_for('change_ip') }}" class="summary-button compact" style="margin-left: 20px;">Change IP</a>
                     </div>
-                    <a href="{{ url_for('change_ip') }}" class="summary-button compact" style="margin-left: 20px;">Change IP</a>
-                    </div>
-                </div>
-            {% endfor %}
-            <div class="summary-text">{{ result['IP Configuration'] }}</div>
-        {% else %}
-        {% endif %}
+                {% endfor %}
+            {% else %}
+            {% endif %}
+        </div>
     </div>
-
-
 
     <div class="summary-box">
         <div class="version-box-title">General Info</div>
@@ -542,6 +541,15 @@
                     </span>
                 </div>
             </div>
+            <div class="summary-text" style="margin-bottom: 0px;">
+                <div class="divider"></div>
+                <strong>Windows Notifications:</strong>
+                <div class="status-label">
+                    <span style="color: {% if result['Windows Notifications'] == 'Enabled' %}#00ff00{% else %}#ff0000{% endif %}">
+                        {{ result['Windows Notifications'] }}
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -570,7 +578,6 @@
         </div>
     </div>
 
-
     <script>
         function launchProgram(url) {
             fetch(url, {
@@ -590,5 +597,93 @@
             });
         }
     </script>
+
+    <script>
+        window.addEventListener('message', function(event) {
+            if (event.data === 'timezone_updated') {
+                fetch('/check_timezone', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    document.querySelector('.timezone-section').innerHTML = html;
+                });
+            }
+        });
+
+        window.addEventListener('message', function(event) {
+            if (event.data === 'network_updated') {
+                fetch('/check_network', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    document.querySelector('.network-section').innerHTML = html;
+                });
+            }
+        });
+        function refreshNetworkSection() {
+            fetch('/check_network', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                document.querySelector('.network-section').innerHTML = html;
+            });
+        }
+
+
+        // After IP change submission
+        document.addEventListener('DOMContentLoaded', function() {
+            const ipForms = document.querySelectorAll('a[href*="change_ip"]');
+            ipForms.forEach(form => {
+                form.addEventListener('click', function(e) {
+                    setTimeout(refreshNetworkSection, 2000);
+                });
+            });
+        });
+
+        function refreshTimezoneSection() {
+            fetch('/check_timezone', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                document.querySelector('.timezone-section').innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error refreshing timezone section:', error);
+            });
+        }
+
+    // Update your DOMContentLoaded event listener
+        document.addEventListener('DOMContentLoaded', function() {
+            // Your existing IP forms code
+            const ipForms = document.querySelectorAll('a[href*="change_ip"]');
+            ipForms.forEach(form => {
+                form.addEventListener('click', function(e) {
+                    setTimeout(refreshNetworkSection, 2000);
+                });
+            });
+
+            // Add timezone form handling
+            const timezoneForm = document.querySelector('form');
+            if (timezoneForm) {
+                timezoneForm.addEventListener('submit', function(e) {
+                    setTimeout(refreshTimezoneSection, 2000);
+                });
+            }
+        });
+
+    </script>
+
 </body>
 </html>

@@ -123,58 +123,59 @@ def get_time_zone():
 
 def get_display_info():
     try:
-        # Get display adapters
+        # Get display adapters (keeping existing code)
         adapter_result = subprocess.check_output("wmic path Win32_VideoController get Name", shell=True).decode()
         adapter_lines = adapter_result.strip().split("\n")[1:]  # Skip header
         adapters = [line.strip() for line in adapter_lines if line.strip()]
 
-        # Get resolution and refresh rates for each adapter
+        # Get resolution and refresh rates (keeping existing code)
         resolution_result = subprocess.check_output("wmic path Win32_VideoController get VideoModeDescription,Name", shell=True).decode()
         resolution_lines = resolution_result.strip().split("\n")[1:]  # Skip header
         
         display_info = []
-        #display_info.append("Display Info:")
+        display_count = 1  # New counter for valid displays
 
-        # Process each display
-        for i, adapter in enumerate(adapters, 1):
-            display_info.append(f"\nDisplay {i}:")
-            display_info.append(f"      Name: {adapter}")
-            
-            # Get resolution for this adapter
+        # Modified display processing loop
+        for adapter in adapters:
+            # Get resolution for this adapter first
             resolution_line = next((line for line in resolution_lines if adapter in line), "")
             resolution_match = re.search(r'(\d{3,4} x \d{3,4})', resolution_line)
-            resolution = resolution_match.group(1) if resolution_match else "Unknown"
-            display_info.append(f"      Resolution: {resolution}")
             
-            # Get refresh rate using a different method
-            try:
-                refresh_rate_result = subprocess.check_output([
-                    "powershell",
-                    "-Command",
-                    f"Get-WmiObject -Query \"SELECT CurrentRefreshRate FROM Win32_VideoController WHERE Name = '{adapter}'\" | Select-Object -ExpandProperty CurrentRefreshRate"
-                ], text=True).strip()
+            # Only process adapters with valid resolutions
+            if resolution_match:
+                resolution = resolution_match.group(1)
+                display_info.append(f"\nDisplay {display_count}:")
+                display_info.append(f"      Name: {adapter}")
+                display_info.append(f"      Resolution: {resolution}")
                 
-                if refresh_rate_result and refresh_rate_result != "":
-                    refresh_rate_float = float(refresh_rate_result)
-                    # Round to nearest common refresh rate
-                    if abs(refresh_rate_float - 60.0) < 0.2:
-                        refresh_rate = "60.0"
-                    elif abs(refresh_rate_float - 59.9) < 0.2:
-                        refresh_rate = "59.9"
+                # Keep existing refresh rate code
+                try:
+                    refresh_rate_result = subprocess.check_output([
+                        "powershell",
+                        "-Command",
+                        f"Get-WmiObject -Query \"SELECT CurrentRefreshRate FROM Win32_VideoController WHERE Name = '{adapter}'\" | Select-Object -ExpandProperty CurrentRefreshRate"
+                    ], text=True).strip()
+                    
+                    if refresh_rate_result and refresh_rate_result != "":
+                        refresh_rate_float = float(refresh_rate_result)
+                        if abs(refresh_rate_float - 60.0) < 0.2:
+                            refresh_rate = "60.0"
+                        elif abs(refresh_rate_float - 59.9) < 0.2:
+                            refresh_rate = "59.9"
+                        else:
+                            refresh_rate = f"{refresh_rate_float:.1f}"
                     else:
-                        refresh_rate = f"{refresh_rate_float:.1f}"
-                else:
+                        refresh_rate = "Unknown"
+                except:
                     refresh_rate = "Unknown"
-            except:
-                refresh_rate = "Unknown"
-                
-            display_info.append(f"      Refresh rate: {refresh_rate} Hz")
+                    
+                display_info.append(f"      Refresh rate: {refresh_rate} Hz")
+                display_count += 1  # Increment only for valid displays
 
         return "\n".join(display_info)
 
     except Exception as e:
         return f"Failed to get display info: {str(e)}"
-
 
 # Option 7: Search for any text document containing "boot" in its name in Documents folders
 def get_boot_drive_version():
@@ -317,18 +318,38 @@ def change_ip_configuration(interface_name, use_dhcp=True, ip_address=None, subn
 
 def get_available_timezones():
     try:
-        # Common time zones to appear at the top
         common_zones = [
-            'Eastern Standard Time',      # US East
-            'Central Standard Time',      # US Central
-            'Mountain Standard Time',     # US Mountain
-            'Pacific Standard Time',      # US Pacific
-            'GMT Standard Time',          # UK
-            'AUS Eastern Standard Time',  # Sydney/Melbourne
-            'Tokyo Standard Time',        # Japan
-            'China Standard Time',        # China
-            'India Standard Time',        # India
-            'W. Europe Standard Time'     # Western Europe
+            # United States & Canada
+            'Eastern Standard Time',          # New York, Toronto, Miami
+            'Central Standard Time',          # Chicago, Dallas, Mexico City
+            'Mountain Standard Time',         # Denver, Phoenix
+            'Pacific Standard Time',          # Los Angeles, Vancouver, Seattle
+            
+            # South America
+            'SA Pacific Standard Time',       # Colombia, Peru
+            'E. South America Standard Time', # Brazil, São Paulo
+            
+            # Europe
+            'GMT Standard Time',              # London, Dublin, Lisbon
+            'W. Europe Standard Time',        # Paris, Berlin, Rome, Amsterdam
+            'Central Europe Standard Time',   # Warsaw, Prague, Budapest
+            'Russian Standard Time',          # Moscow
+            
+            # Asia Pacific
+            'China Standard Time',            # Beijing, Shanghai, Singapore
+            'Tokyo Standard Time',            # Japan
+            'Korea Standard Time',            # Seoul
+            'India Standard Time',            # Mumbai, New Delhi
+            'Singapore Standard Time',        # Singapore, Kuala Lumpur
+            
+            # Australia & NZ
+            'AUS Eastern Standard Time',      # Sydney, Melbourne, Canberra
+            'AUS Central Standard Time',      # Adelaide, Darwin
+            'AUS Western Standard Time',      # Perth
+            'New Zealand Standard Time',      # Auckland, Wellington
+            
+            # Middle East
+            'Arabian Standard Time',          # Dubai, Abu Dhabi
         ]
         
         result = subprocess.run(['tzutil', '/l'], capture_output=True, text=True)
@@ -791,20 +812,22 @@ def is_windows_update_enabled():
     
 def check_notification_settings():
     try:
-        # Try to open the Windows App Runtime registry key for notifications
-        key_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
-        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_READ)
-        
-        try:
-            # Try to get EnableNotificationCenter value
-            value, _ = winreg.QueryValueEx(key, "EnableNotificationCenter")
-            return "Notifications are " + ("enabled" if value == 1 else "disabled")
-        except WindowsError:
-            # If that specific value isn't found, try alternate method
-            subprocess.run(['powershell', '-Command', 'Get-ItemProperty -Path "HKCU:/SOFTWARE/Microsoft/Windows/CurrentVersion/Explorer/Advanced"'], capture_output=True)
-            return "Could not determine exact status - please check Windows Settings"
+        ps_command = r'''
+        $notificationSettings = Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\PushNotifications" -ErrorAction SilentlyContinue
+        if ($notificationSettings.ToastEnabled -eq 1) { "Enabled" } else { "Disabled" }
+        '''
+        result = subprocess.run(['powershell', '-Command', ps_command], 
+                              capture_output=True, 
+                              text=True)
+        return result.stdout.strip()
     except Exception as e:
-        return f"Error accessing notification settings: {str(e)}"
+        print(f"Error checking notification settings: {str(e)}")
+        return "Disabled"
+    
+    
+    
+    
+    
 ################## PRINT SUMMARY ##################################
 def print_summary():
     """Print a formatted summary of all system checks"""

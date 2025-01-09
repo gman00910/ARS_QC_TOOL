@@ -5,17 +5,26 @@ import sys
 import os 
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 import webbrowser
-from threading import Timer, Thread
+from threading import Timer
 import main_script 
-import logging
 from logging.config import dictConfig
 import win32gui
 import win32con
 import sys
 import ctypes
 from datetime import datetime
-import tempfile
 from colorama import Fore, Style
+from flask import make_response
+from functools import wraps
+import time
+from main_script import check_dhcp_status
+
+# Cache configuration
+cache = {}
+CACHE_DURATION = 30  # seconds
+EXCLUDED_PATHS = {'/change_ip', '/change/<setting>'} 
+
+
 
 def is_admin():
     try:
@@ -39,49 +48,79 @@ app = Flask(__name__,
            static_folder='static',
            template_folder='templates')
     
-def minimize_console():
-    def enum_windows(hwnd, windows):
-        if win32gui.IsWindowVisible(hwnd):
-            window_title = win32gui.GetWindowText(hwnd)
-            if "python.exe" in window_title.lower():
-                windows.append(hwnd)
-    
-    windows = []
-    win32gui.EnumWindows(enum_windows, windows)
-    
-    for hwnd in windows:
-        win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
-    
+
+
+def cache_control(max_age=30):
+    def decorator(view_function):
+        @wraps(view_function)
+        def wrapped_function(*args, **kwargs):
+            # Don't cache AJAX requests
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                response = make_response(view_function(*args, **kwargs))
+                response.headers['Cache-Control'] = 'no-store'
+                return response
+
+            # Don't cache excluded paths
+            if request.path in EXCLUDED_PATHS:
+                response = make_response(view_function(*args, **kwargs))
+                response.headers['Cache-Control'] = 'no-store'
+                return response
+
+            cache_key = f"{request.path}:{request.query_string}"
+            cached_data = cache.get(cache_key)
+            
+            if cached_data and time.time() - cached_data['timestamp'] < CACHE_DURATION:
+                return cached_data['response']
+
+            response = make_response(view_function(*args, **kwargs))
+            cache[cache_key] = {
+                'response': response,
+                'timestamp': time.time()
+            }
+
+            response.headers['Cache-Control'] = f'public, max-age={max_age}'
+            return response
+        return wrapped_function
+    return decorator
+
+
+
 @app.route('/')
+@cache_control(max_age=30)
 def index():
     dhcp_info = main_script.check_dhcp_status()
     network_profiles = main_script.get_network_profile()
     # task_scheduler_data = main_script.check_task_scheduler_status()
     # print("Debug - Raw task data:", task_scheduler_data)  # Debug print
     task_scheduler_data = main_script.check_task_scheduler_status()
-    try:
-        dhcp_info = main_script.check_dhcp_status()
-        app.logger.debug(f"DHCP info: {dhcp_info}")
+    
+    
+    ### FOR DEBUGGING PURPOSES ONLY ####
+    
+    #try:
+        #dhcp_info = main_script.check_dhcp_status()
+        #app.logger.debug(f"DHCP info: {dhcp_info}")
         
-        network_profiles = main_script.get_network_profile()
-        app.logger.debug(f"Network profiles: {network_profiles}")
+        #network_profiles = main_script.get_network_profile()
+        #app.logger.debug(f"Network profiles: {network_profiles}")
         
         # Add debugging before formatting
-        app.logger.debug(f"Task scheduler data type: {type(task_scheduler_data)}")
+        #app.logger.debug(f"Task scheduler data type: {type(task_scheduler_data)}")
         
         #formatted_tasks = main_script.format_task_scheduler_for_web(task_scheduler_data)
         #app.logger.debug(f"Formatted task data: {formatted_tasks}")
         
-    except Exception as e:
-        app.logger.error(f"Error in index route: {str(e)}", exc_info=True)
-        return f"Error: {str(e)}", 500
+    #except Exception as e:
+     #   app.logger.error(f"Error in index route: {str(e)}", exc_info=True)
+     #   return f"Error: {str(e)}", 500
+        
         
     #2nd task scheduler debugger - maybe delete???
-    if task_scheduler_data is None:
-        print("Debug - No task scheduler data returned")
-        task_scheduler_formatted = ['<div class="task-error">Error retrieving task scheduler data</div>']
-    else:
-        task_scheduler_formatted = main_script.format_task_scheduler_for_web(task_scheduler_data)
+    #if task_scheduler_data is None:
+    #    print("Debug - No task scheduler data returned")
+    #    task_scheduler_formatted = ['<div class="task-error">Error retrieving task scheduler data</div>']
+    #else:
+    #    task_scheduler_formatted = main_script.format_task_scheduler_for_web(task_scheduler_data)
         
     # Merge network profile info into DHCP info
     if isinstance(dhcp_info, dict) and isinstance(network_profiles, dict):
@@ -107,13 +146,13 @@ def index():
             'FX3 Version': main_script.get_fx3_version(),
             'Computer Metrics': main_script.computer_metrics(),
             'Windows Defender Status': main_script.windows_defender_status(),
-            'Firewall Status': main_script.check_firewall_status(),
+            'Firewall Status': main_script.check_firewall_status(), 
             'Defrag Status': main_script.check_defrag_settings(),
             'Drive Health': main_script.quick_drive_check(),
             'Network Profile': main_script.get_network_profile(),
             'Windows Update': main_script.is_windows_update_enabled(),
+            'Windows Notifications': main_script.check_notification_settings()
             }
-        print("Debug - Formatted task data:", result['Task Scheduler Status'])  # Debug print
         return render_template('index.html', result=result)
     except Exception as e:
         print(f"Error in route: {str(e)}")
@@ -121,21 +160,23 @@ def index():
 
 @app.route('/change/<setting>', methods=['GET', 'POST'])
 def change_setting(setting):
-    if request.method == 'POST':
-        if setting == 'time_zone':
-            new_timezone = request.form.get('new_value')
-            result = main_script.change_time_zone(new_timezone)
-            # Return to main page immediately after change
-            return redirect(url_for('index'))
-    
-    if setting == 'time_zone':
-        timezones = main_script.get_available_timezones()
-        return render_template('change_setting.html', setting=setting, timezones=timezones)
-    
-    else:
-        result = "Setting not supported for changes"
+    try:
+        if request.method == 'POST':
+            if setting == 'time_zone':
+                new_timezone = request.form.get('new_value')
+                result = main_script.change_time_zone(new_timezone)
+                # Return JSON response instead of redirecting
+                return jsonify({'success': True, 'message': result})
         
-    return render_template('result.html', result=result)
+        if setting == 'time_zone':
+            timezones = main_script.get_available_timezones()
+            return render_template('change_setting.html', setting=setting, timezones=timezones)
+        
+        return "Setting not supported for changes", 400
+        
+    except Exception as e:
+        print(f"Error in change_setting route: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/run_viblib', methods=['POST'])
 def run_viblib_route():
@@ -163,6 +204,9 @@ def run_viblib_route():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
+
+
+
 @app.route('/change_ip', methods=['GET', 'POST'])
 def change_ip():
     if request.method == 'POST':
@@ -172,16 +216,21 @@ def change_ip():
         subnet_mask = request.form.get('subnet_mask')
         gateway = request.form.get('gateway')
         
-        result = main_script.change_ip_configuration(interface_name, use_dhcp, ip_address, subnet_mask, gateway)
+        result = main_script.change_ip_configuration(
+            interface_name, use_dhcp, ip_address, subnet_mask, gateway
+        )
         
-        # Return JSON for AJAX handling
+        # Clear cache after IP change
+        cache.clear()
+        
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'result': result, 'success': 'Failed' not in result})
-            
+        
         return redirect(url_for('index'))
     
     interfaces = main_script.check_dhcp_status()
     return render_template('change_ip.html', interfaces=interfaces)
+
 
 @app.route('/open_command_prompt')
 def open_command_prompt():
@@ -387,11 +436,18 @@ def minimize_console():
         print(f"Error minimizing console: {str(e)}")
 
 
-@app.after_request
-def add_cache_headers(response):
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
-    return response
+@app.route('/check_network')
+def check_network():
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        result = check_dhcp_status()  # Your existing function
+        return render_template('network_section.html', result=result)
 
+@app.route('/check_timezone')
+def check_timezone():
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        timezone = main_script.get_time_zone()  # Use your existing get_time_zone function
+        return render_template('timezone_section.html', result={'Time Zone': timezone})
+    return '', 400
 
 
 if __name__ == '__main__':
@@ -400,8 +456,8 @@ if __name__ == '__main__':
         #app.config['task_data'] = main_script.check_task_scheduler_status()
         
         # Start browser after data is loaded
-        Timer(0.5, open_browser).start()
-        Timer(0.5, minimize_console).start()
+        Timer(0.1, open_browser).start()
+        Timer(0.1, minimize_console).start()
         
         #webbrowser.open('http://127.0.0.1:5000')
         app.run(host='127.0.0.1', port=5000)
