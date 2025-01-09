@@ -372,24 +372,27 @@ def minimize_console():
         def enum_windows(hwnd, windows):
             if win32gui.IsWindowVisible(hwnd):
                 title = win32gui.GetWindowText(hwnd)
-                # Look for both Python and Flask windows
-                if "python" in title.lower() or "flask" in title.lower():
+                # Only minimize the main Python/Flask window
+                if ("python" in title.lower() or "flask" in title.lower()) and "summary" not in title.lower():
                     windows.append(hwnd)
         
         windows = []
         win32gui.EnumWindows(enum_windows, windows)
         
-        # Minimize all matching windows
-        for hwnd in windows:
-            win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
+        # Only minimize the main console window
+        if windows:
+            win32gui.ShowWindow(windows[0], win32con.SW_MINIMIZE)
             
     except Exception as e:
         print(f"Error minimizing console: {str(e)}")
+
 
 @app.after_request
 def add_cache_headers(response):
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
     return response
+
+
 
 if __name__ == '__main__':
     if is_admin():
