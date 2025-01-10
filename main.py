@@ -5,167 +5,33 @@ import sys
 import os 
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 import webbrowser
-from threading import Timer, Thread
+from threading import Timer
 import main_script 
-import logging
 from logging.config import dictConfig
 import win32gui
 import win32con
 import sys
 import ctypes
 from datetime import datetime
-import tempfile
 from colorama import Fore, Style
+from flask import make_response
+from functools import wraps
 import time
-import logging
-import traceback
-from datetime import datetime
-import psutil
-import logging
-from datetime import datetime
-import os
-import json
+from main_script import check_dhcp_status
+from functools import lru_cache
+from datetime import datetime, timedelta
 
-class ProcessTracker:
-    def __init__(self):
-        # Set up logging
-        self.log_dir = 'process_logs'
-        os.makedirs(self.log_dir, exist_ok=True)
-        
-        self.log_file = os.path.join(
-            self.log_dir, 
-            f'process_tracker_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
-        )
-        
-        # Configure logging
-        self.logger = logging.getLogger('ProcessTracker')
-        self.logger.setLevel(logging.DEBUG)
-        
-        # File handler
-        fh = logging.FileHandler(self.log_file)
-        fh.setLevel(logging.DEBUG)
-        
-        # Console handler
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
-        
-        # Formatter
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-        ch.setFormatter(formatter)
-        
-        self.logger.addHandler(fh)
-        self.logger.addHandler(ch)
-        
-        # Track initial state
-        self.initial_processes = self.get_current_processes()
-        self.log_process_state("Initial process state")
+# Cache configuration
+cache = {}
+EXCLUDED_PATHS = {'/change_ip', '/change/<setting>'} 
 
-    def get_current_processes(self):
-        processes = {}
-        for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'create_time']):  # Removed 'parent'
-            try:
-                pinfo = proc.as_dict(['pid', 'name', 'cmdline', 'create_time'])
-                try:
-                    pinfo['parent'] = proc.parent().pid if proc.parent() else None
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    pinfo['parent'] = None
-                processes[proc.pid] = pinfo
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
-        return processes
-
-    def log_process_state(self, event_type="Process Check"):
-        current_processes = self.get_current_processes()
-        
-        # Look for new processes
-        for pid, proc_info in current_processes.items():
-            if pid not in self.initial_processes:
-                if any(term in proc_info['name'].lower() for term in ['python', 'powershell', 'cmd', 'shell']):
-                    self.logger.info(f"""
-New Process Detected:
-Event: {event_type}
-PID: {pid}
-Name: {proc_info['name']}
-Command: {' '.join(proc_info['cmdline']) if proc_info['cmdline'] else 'N/A'}
-Parent PID: {proc_info['parent']}
-Creation Time: {datetime.fromtimestamp(proc_info['create_time']).strftime('%Y-%m-%d %H:%M:%S.%f')}
-""")
-
-        # Look for terminated processes
-        for pid, proc_info in self.initial_processes.items():
-            if pid not in current_processes:
-                if any(term in proc_info['name'].lower() for term in ['python', 'powershell', 'cmd', 'shell']):
-                    self.logger.info(f"""
-Process Terminated:
-Event: {event_type}
-PID: {pid}
-Name: {proc_info['name']}
-Command: {' '.join(proc_info['cmdline']) if proc_info['cmdline'] else 'N/A'}
-""")
-
-        # Update initial state
-        self.initial_processes = current_processes
-
-    def log_subprocess_call(self, command, cwd=None):
-        self.logger.info(f"""
-Subprocess Call:
-Command: {command}
-Working Directory: {cwd or 'Default'}
-Current Process ID: {os.getpid()}
-""")
-        self.log_process_state("Subprocess Call")
-
-# Create a global instance
-process_tracker = ProcessTracker()
-
-
-
-
-
-
-
-
-# Set up logging
-log_filename = f'app_debug_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(log_filename),
-        logging.StreamHandler()  # This will print to console as well
-    ]
-)
-logger = logging.getLogger(__name__)
-
-# Add this function to track subprocess calls
-def log_subprocess_execution(cmd, cwd=None):
-    logger.debug(f"""
-Subprocess Execution:
-Command: {cmd}
-Working Directory: {cwd or 'Default'}
-Process ID: {os.getpid()}
-Python Executable: {sys.executable}
-Arguments: {sys.argv}
-""")
-    
-
-def get_subprocess_flags():
-    if sys.platform == 'win32':
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        return {
-            'startupinfo': startupinfo,
-            'creationflags': subprocess.CREATE_NO_WINDOW,
-            'shell': False
-        }
-    return {'shell': False}
 
 def is_admin():
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
     except:
         return False
+
 
 if not is_admin():
     if sys.platform == 'win32':
@@ -193,104 +59,151 @@ app = Flask(__name__,
            static_url_path='/static',
            static_folder='static',
            template_folder='templates')
-    
-def minimize_console():
-    def enum_windows(hwnd, windows):
-        if win32gui.IsWindowVisible(hwnd):
-            window_title = win32gui.GetWindowText(hwnd)
-            if "python.exe" in window_title.lower():
-                windows.append(hwnd)
-    
-    windows = []
-    win32gui.EnumWindows(enum_windows, windows)
-    
-    for hwnd in windows:
-        win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
-    
-@app.route('/')
-def index():
-    dhcp_info = main_script.check_dhcp_status()
-    network_profiles = main_script.get_network_profile()
-    # task_scheduler_data = main_script.check_task_scheduler_status()
-    # print("Debug - Raw task data:", task_scheduler_data)  # Debug print
-    task_scheduler_data = main_script.check_task_scheduler_status()
-    try:
-        dhcp_info = main_script.check_dhcp_status()
-        app.logger.debug(f"DHCP info: {dhcp_info}")
-        
-        network_profiles = main_script.get_network_profile()
-        app.logger.debug(f"Network profiles: {network_profiles}")
-        
-        # Add debugging before formatting
-        app.logger.debug(f"Task scheduler data type: {type(task_scheduler_data)}")
-        
-        #formatted_tasks = main_script.format_task_scheduler_for_web(task_scheduler_data)
-        #app.logger.debug(f"Formatted task data: {formatted_tasks}")
-        
-    except Exception as e:
-        app.logger.error(f"Error in index route: {str(e)}", exc_info=True)
-        return f"Error: {str(e)}", 500
-        
-    #2nd task scheduler debugger - maybe delete???
-    if task_scheduler_data is None:
-        print("Debug - No task scheduler data returned")
-        task_scheduler_formatted = ['<div class="task-error">Error retrieving task scheduler data</div>']
-    else:
-        task_scheduler_formatted = main_script.format_task_scheduler_for_web(task_scheduler_data)
-        
-    # Merge network profile info into DHCP info
-    if isinstance(dhcp_info, dict) and isinstance(network_profiles, dict):
-        for interface_name, interface_info in dhcp_info.items():
-            # Find matching interface in network_profiles
-            for profile_name, category in network_profiles.items():
-                if profile_name in interface_name:
-                    # Add category to Type
-                    interface_info['Type'] = f"{interface_info['Type']} (Category: {category})"
-    try:
-        result = {
-            'Computer Name': main_script.get_computer_name(),
-            'Windows Activation': main_script.check_windows_activation(),
-            'Task Scheduler Status': main_script.format_task_scheduler_for_web(task_scheduler_data),
-            'IP Configuration': main_script.check_dhcp_status(), 
-            'Time Zone': main_script.get_time_zone(),
-            'Display Info': main_script.get_display_info(),
-            'ARS Version': main_script.get_ars_version(),
-            'Boot Drive Version': main_script.get_boot_drive_version(),
-            'COM Ports': main_script.get_com_ports(),
-            'ARS Shortcut': main_script.check_ars_shortcut(),
-            'VIB Version': main_script.get_vib_version(),
-            'FX3 Version': main_script.get_fx3_version(),
-            'Computer Metrics': main_script.computer_metrics(),
-            'Windows Defender Status': main_script.windows_defender_status(),
-            'Firewall Status': main_script.check_firewall_status(),
-            'Defrag Status': main_script.check_defrag_settings(),
-            'Drive Health': main_script.quick_drive_check(),
-            'Network Profile': main_script.get_network_profile(),
-            'Windows Update': main_script.is_windows_update_enabled(),
+
+CACHE_DURATION = 300
+
+def cache_control(max_age=30):
+    def decorator(view_function):
+        @wraps(view_function)
+        def wrapped_function(*args, **kwargs):
+            # Don't cache AJAX requests
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                response = make_response(view_function(*args, **kwargs))
+                response.headers['Cache-Control'] = 'no-store'
+                return response
+
+            # Don't cache excluded paths
+            if request.path in EXCLUDED_PATHS:
+                response = make_response(view_function(*args, **kwargs))
+                response.headers['Cache-Control'] = 'no-store'
+                return response
+
+            cache_key = f"{request.path}:{request.query_string}"
+            cached_data = cache.get(cache_key)
+            
+            if cached_data and time.time() - cached_data['timestamp'] < CACHE_DURATION:
+                return cached_data['response']
+
+            response = make_response(view_function(*args, **kwargs))
+            cache[cache_key] = {
+                'response': response,
+                'timestamp': time.time()
             }
-        print("Debug - Formatted task data:", result['Task Scheduler Status'])  # Debug print
+
+            response.headers['Cache-Control'] = f'public, max-age={max_age}'
+            return response
+        return wrapped_function
+    return decorator
+
+@lru_cache(maxsize=1)
+def get_cached_system_info():
+    task_scheduler_data = main_script.check_task_scheduler_status() 
+    return {
+        'Computer Name': main_script.get_computer_name(),
+        'Windows Activation': main_script.check_windows_activation(),
+        'Task Scheduler Status': main_script.format_task_scheduler_for_web(task_scheduler_data),
+        'Display Info': main_script.get_display_info(),
+        'ARS Version': main_script.get_ars_version(),
+        'Boot Drive Version': main_script.get_boot_drive_version(),
+        'COM Ports': main_script.get_com_ports(),
+        'ARS Shortcut': main_script.check_ars_shortcut(),
+        'VIB Version': main_script.get_vib_version(),
+        'FX3 Version': main_script.get_fx3_version(),
+        'Computer Metrics': main_script.computer_metrics(),
+        'Windows Defender Status': main_script.windows_defender_status(),
+        'Firewall Status': main_script.check_firewall_status(), 
+        'Defrag Status': main_script.check_defrag_settings(),
+        'Drive Health': main_script.quick_drive_check(),
+        'Network Profile': main_script.get_network_profile(),
+        'Windows Update': main_script.is_windows_update_enabled(),
+        'Windows Notifications': main_script.check_notification_settings()
+    }
+
+
+
+# def clear_cache():
+#     get_cached_system_info.cache_clear()
+
+# @app.before_first_request
+# def setup_cache_clearing():
+#     from apscheduler.schedulers.background import BackgroundScheduler
+#     scheduler = BackgroundScheduler()
+#     scheduler.add_job(func=clear_cache, trigger="interval", seconds=CACHE_DURATION)
+#     scheduler.start()
+
+
+@app.route('/')
+@cache_control(max_age=30)
+def index():
+    try:
+        # Get cached data
+        cached_info = get_cached_system_info()
+        
+        # Get real-time data that shouldn't be cached
+        dhcp_info = main_script.check_dhcp_status()
+        network_profiles = main_script.get_network_profile()
+        task_scheduler_data = main_script.check_task_scheduler_status()  
+            
+        # Merge network profile info into DHCP info
+        if isinstance(dhcp_info, dict) and isinstance(network_profiles, dict):
+            for interface_name, interface_info in dhcp_info.items():
+                for profile_name, category in network_profiles.items():
+                    if profile_name in interface_name:
+                        interface_info['Type'] = f"{interface_info['Type']} (Category: {category})"
+
+        # Create result using ALL the original data points but use cached where possible
+        result = {
+            'Computer Name': cached_info['Computer Name'],
+            'Windows Activation': cached_info['Windows Activation'],
+            'Task Scheduler Status': main_script.format_task_scheduler_for_web(task_scheduler_data),
+            'IP Configuration': dhcp_info, 
+            'Time Zone': main_script.get_time_zone(),
+            'Display Info': cached_info['Display Info'],
+            'ARS Version': cached_info['ARS Version'],
+            'Boot Drive Version': cached_info['Boot Drive Version'],
+            'COM Ports': cached_info['COM Ports'],
+            'ARS Shortcut': cached_info['ARS Shortcut'],
+            'VIB Version': cached_info['VIB Version'],
+            'FX3 Version': cached_info['FX3 Version'],
+            'Computer Metrics': cached_info['Computer Metrics'],
+            'Windows Defender Status': cached_info['Windows Defender Status'],
+            'Firewall Status': cached_info['Firewall Status'], 
+            'Defrag Status': cached_info['Defrag Status'],
+            'Drive Health': cached_info['Drive Health'],
+            'Network Profile': network_profiles,
+            'Windows Update': cached_info['Windows Update'],
+            'Windows Notifications': cached_info['Windows Notifications']
+        }
+        
         return render_template('index.html', result=result)
+        
     except Exception as e:
         print(f"Error in route: {str(e)}")
         return "Error loading page", 500
 
 @app.route('/change/<setting>', methods=['GET', 'POST'])
 def change_setting(setting):
-    if request.method == 'POST':
-        if setting == 'time_zone':
-            new_timezone = request.form.get('new_value')
-            result = main_script.change_time_zone(new_timezone)
-            # Return to main page immediately after change
-            return redirect(url_for('index'))
-    
-    if setting == 'time_zone':
-        timezones = main_script.get_available_timezones()
-        return render_template('change_setting.html', setting=setting, timezones=timezones)
-    
-    else:
-        result = "Setting not supported for changes"
+    try:
+        if request.method == 'POST':
+            if setting == 'time_zone':
+                new_timezone = request.form.get('new_value')
+                result = main_script.change_time_zone(new_timezone)
+                # Instead of redirecting, return JSON
+                return jsonify({
+                    'success': True,
+                    'message': result,
+                    'newTimezone': new_timezone
+                })
         
-    return render_template('result.html', result=result)
+        if setting == 'time_zone':
+            timezones = main_script.get_available_timezones()
+            return render_template('change_setting.html', setting=setting, timezones=timezones)
+        
+        return jsonify({'success': False, 'error': 'Setting not supported'}), 400
+        
+    except Exception as e:
+        print(f"Error in change_setting route: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/run_viblib', methods=['POST'])
 def run_viblib_route():
@@ -318,24 +231,52 @@ def run_viblib_route():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
+
+
+
+# @app.route('/change_ip', methods=['GET', 'POST'])
+# def change_ip():
+#     if request.method == 'POST':
+#         interface_name = request.form.get('interface_name')
+#         use_dhcp = request.form.get('use_dhcp') == 'true'
+#         ip_address = request.form.get('ip_address')
+#         subnet_mask = request.form.get('subnet_mask')
+#         gateway = request.form.get('gateway')
+        
+#         result = main_script.change_ip_configuration(
+#             interface_name, use_dhcp, ip_address, subnet_mask, gateway
+#         )
+        
+#         return jsonify({
+#             'success': 'Failed' not in result,
+#             'message': result
+#         })
+    
+#     interfaces = main_script.check_dhcp_status()
+#     return render_template('change_ip.html', interfaces=interfaces)
 @app.route('/change_ip', methods=['GET', 'POST'])
 def change_ip():
     if request.method == 'POST':
-        interface_name = request.form.get('interface_name')
-        use_dhcp = request.form.get('use_dhcp') == 'true'
-        ip_address = request.form.get('ip_address')
-        subnet_mask = request.form.get('subnet_mask')
-        gateway = request.form.get('gateway')
-        
-        result = main_script.change_ip_configuration(interface_name, use_dhcp, ip_address, subnet_mask, gateway)
-        
-        # Return JSON for AJAX handling
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'result': result, 'success': 'Failed' not in result})
+            interface_name = request.form.get('interface_name')
+            use_dhcp = request.form.get('use_dhcp') == 'true'
+            ip_address = request.form.get('ip_address')
+            subnet_mask = request.form.get('subnet_mask')
+            gateway = request.form.get('gateway')
             
-        return redirect(url_for('index'))
+            result = main_script.change_ip_configuration(
+                interface_name, use_dhcp, ip_address, subnet_mask, gateway
+            )
+            
+            return jsonify({
+                'success': 'Failed' not in result,
+                'message': result
+            })
     
+    # GET request - make sure we have interfaces data
     interfaces = main_script.check_dhcp_status()
+    if isinstance(interfaces, dict):
+        interfaces = {'IP Configuration': interfaces}  # Match the structure expected by the template
     return render_template('change_ip.html', interfaces=interfaces)
 
 @app.route('/open_command_prompt')
@@ -534,32 +475,35 @@ def minimize_console():
     except Exception as e:
         print(f"Error minimizing console: {str(e)}")
 
-# @app.after_request
-# def add_cache_headers(response):
-#     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
-#     return response
+
+@app.route('/check_network')
+def check_network():
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        result = check_dhcp_status()  # Your existing function
+        return render_template('network_section.html', result=result)
+
+@app.route('/check_timezone')
+def check_timezone():
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        timezone = main_script.get_time_zone()  # Use your existing get_time_zone function
+        return render_template('timezone_section.html', result={'Time Zone': timezone})
+    return '', 400
+
 
 if __name__ == '__main__':
-    process_tracker.logger.info("Application Starting")
-    process_tracker.log_process_state("Application Start")
+    try:
+        if is_admin():
+            # Pre-load data to avoid multiple subprocess calls
+            #app.config['task_data'] = main_script.check_task_scheduler_status()
+            
+            # Start browser after data is loaded
+            Timer(0.1, open_browser).start()
+            Timer(0.1, minimize_console).start()
+            
+            #webbrowser.open('http://127.0.0.1:5000')
+            app.run(host='127.0.0.1', port=5000)
 
-    if is_admin():
-        process_tracker.logger.info("Running with admin privileges")
-        
-        def delayed_browser_open():
-            process_tracker.log_process_state("Before Browser Open")
-            open_browser()
-            process_tracker.log_process_state("After Browser Open")
+    except Exception as e:
+        print(f"Startup Error: {str(e)}")
+        input("Press Enter to exit...")  # This will keep the window open
 
-        def delayed_console_minimize():
-            process_tracker.log_process_state("Before Console Minimize")
-            minimize_console()
-            process_tracker.log_process_state("After Console Minimize")
-
-        Timer(0.3, delayed_browser_open).start()
-        Timer(0.5, delayed_console_minimize).start()
-        
-        process_tracker.logger.info("Starting Flask server")
-        app.run(debug=False, host='127.0.0.1', port=5000, use_reloader=False)
-    else:
-        process_tracker.logger.warning("Not running with admin privileges")

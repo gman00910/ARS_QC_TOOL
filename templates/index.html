@@ -318,6 +318,8 @@
                 console.error('Error:', error);
             });
         }
+
+
         window.onload = function() {
             window.moveTo(0, 0);
             window.resizeTo(screen.availWidth, screen.availHeight);
@@ -330,10 +332,48 @@
                     });
             }
         };
+
         </script>
     </style>
+    <!-- <style>
+        #main-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 26, 26, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #333;
+            border-radius: 50%;
+            border-top: 5px solid #ff6600;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style> -->
 </head>
 <body>
+    <!-- <div id="main-loader">
+        <div class="loader"></div>
+    </div> -->
     <div class="header">
         <img src="{{ url_for('static', filename='images/logo-shotover.png') }}" alt="Shotover Logo" class="logo">
         <h1>DRIVE SUMMARY</h1>
@@ -352,32 +392,28 @@
 
     <div class="summary-box">
         <div class="version-box-title">Network Configuration</div>
-        {% if result['IP Configuration'] is mapping %}
-            {% for interface, status in result['IP Configuration'].items() %}
-                <div class="summary-text">
-                    <strong>{{ interface }}:</strong>
-                    <div class="status-label">
-                        <div>Type: {{ status.get('Type', 'N/A') }}</div>
-                        <div>DHCP: {{ status['DHCP'] }}</div>
-                        {% if status['DNS Suffix'] %}
-                            <div>DNS Suffix: {{ status['DNS Suffix'] }}</div>
-                        {% endif %}
-                        <div>IP: {{ status['IP'] }}</div>
-                        {% if status['DHCP'] == 'Disabled' %}
+        <div class="network-section">  <!-- Added this wrapper div -->
+            {% if result['IP Configuration'] is mapping %}
+                {% for interface, status in result['IP Configuration'].items() %}
+                    <div class="summary-text">
+                        <strong>{{ interface }}:</strong>
+                        <div class="status-label">
+                            <div>Type: {{ status.get('Type', 'N/A') }}</div>
+                            <div>DHCP: {{ status['DHCP'] }}</div>
+                            {% if status['DNS Suffix'] %}
+                                <div>DNS Suffix: {{ status['DNS Suffix'] }}</div>
+                            {% endif %}
+                            <div>IP: {{ status['IP'] }}</div>
                             <div>Subnet Mask: {{ status.get('Subnet Mask', 'N/A') }}</div>
                             <div>Gateway: {{ status.get('Gateway', 'N/A') }}</div>
-                        {% endif %}
+                        </div>
+                        <a href="{{ url_for('change_ip') }}" class="summary-button compact" style="margin-left: 20px;">Change IP (NEEDS DEV)</a>
                     </div>
-                    <a href="{{ url_for('change_ip') }}" class="summary-button compact" style="margin-left: 20px;">Change IP</a>
-                    </div>
-                </div>
-            {% endfor %}
-            <div class="summary-text">{{ result['IP Configuration'] }}</div>
-        {% else %}
-        {% endif %}
+                {% endfor %}
+            {% else %}
+            {% endif %}
+        </div>
     </div>
-
-
 
     <div class="summary-box">
         <div class="version-box-title">General Info</div>
@@ -389,10 +425,12 @@
         <div class="summary-text">
             <div class="divider"></div>
             <strong>Time Zone:</strong>
-            <div class="status-label" style="text-align: center;">
-                {{ result.get('Time Zone', 'N/A') }}
-                <div style="margin-top: 10px;">
-                    <a href="{{ url_for('change_setting', setting='time_zone') }}" class="summary-button compact">Change Time Zone</a>
+            <div class="timezone-section">  <!-- Add this wrapper -->
+                <div class="status-label" style="text-align: center;">
+                    {{ result.get('Time Zone', 'N/A') }}
+                    <div style="margin-top: 10px;">
+                        <a href="{{ url_for('change_setting', setting='time_zone') }}" class="summary-button compact">Change Time Zone (works, doesnt update)</a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -542,6 +580,15 @@
                     </span>
                 </div>
             </div>
+            <div class="summary-text" style="margin-bottom: 0px;">
+                <div class="divider"></div>
+                <strong>Windows Notifications:</strong>
+                <div class="status-label">
+                    <span style="color: {% if result['Windows Notifications'] == 'Enabled' %}#00ff00{% else %}#ff0000{% endif %}">
+                        {{ result['Windows Notifications'] }}
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -570,7 +617,6 @@
         </div>
     </div>
 
-
     <script>
         function launchProgram(url) {
             fetch(url, {
@@ -590,5 +636,136 @@
             });
         }
     </script>
+
+    <script>
+        window.addEventListener('message', function(event) {
+            if (event.data === 'timezone_updated' || event.data === 'network_updated') {
+                // Only refresh the sections that changed
+                if (event.data === 'timezone_updated') {
+                    fetch('/check_timezone', {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.text())
+                    .then(html => {
+                        document.querySelector('.timezone-section').innerHTML = html;
+                    });
+                }
+                
+                if (event.data === 'network_updated') {
+                    fetch('/check_network', {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.text())
+                    .then(html => {
+                        document.querySelector('.network-section').innerHTML = html;
+                    });
+                }
+            }
+        });
+        function refreshNetworkSection() {
+            fetch('/check_network', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                document.querySelector('.network-section').innerHTML = html;
+            });
+        }
+
+
+        // After IP change submission
+        document.addEventListener('DOMContentLoaded', function() {
+            const ipForms = document.querySelectorAll('a[href*="change_ip"]');
+            ipForms.forEach(form => {
+                form.addEventListener('click', function(e) {
+                    setTimeout(refreshNetworkSection, 2000);
+                });
+            });
+        });
+
+        function refreshTimezoneSection() {
+            fetch('/check_timezone', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                document.querySelector('.timezone-section').innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error refreshing timezone section:', error);
+            });
+        }
+
+        // Update your DOMContentLoaded event listener
+        document.addEventListener('DOMContentLoaded', function() {
+            // Your existing IP forms code
+            const ipForms = document.querySelectorAll('a[href*="change_ip"]');
+            ipForms.forEach(form => {
+                form.addEventListener('click', function(e) {
+                    setTimeout(refreshNetworkSection, 2000);
+                });
+            });
+
+            // Add timezone form handling
+            const timezoneForm = document.querySelector('form');
+            if (timezoneForm) {
+                timezoneForm.addEventListener('submit', function(e) {
+                    setTimeout(refreshTimezoneSection, 2000);
+                });
+            }
+        });
+
+    </script>
+    <!-- <script>
+    // Improved loader script
+    document.addEventListener('DOMContentLoaded', function() {
+        const loader = document.getElementById('main-loader');
+        
+        // Function to hide loader
+        function hideLoader() {
+            if (loader) {
+                loader.classList.add('hidden');
+                
+                // Completely remove the loader after transition
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                }, 500);
+            }
+        }
+
+        // Try multiple methods to ensure loader is hidden
+        window.addEventListener('load', hideLoader);
+        
+        // Fallback methods
+        setTimeout(hideLoader, 5000); // Force hide after 5 seconds
+        
+        // Additional check for fully loaded resources
+        if (document.readyState === 'complete') {
+            hideLoader();
+        } else {
+            window.addEventListener('loadstart', hideLoader);
+            window.addEventListener('complete', hideLoader);
+        }
+    });
+
+    // For network updates (keep existing network update logic)
+    window.addEventListener('message', function(event) {
+        if (event.data === 'network_updated') {
+            const loader = document.getElementById('main-loader');
+            loader.classList.remove('hidden');
+            setTimeout(() => {
+                location.reload();
+            }, 500);
+        }
+    });
+    </script> -->
 </body>
 </html>

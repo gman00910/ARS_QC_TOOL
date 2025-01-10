@@ -88,68 +88,188 @@
     <div class="form-container">
         <form method="POST" action="{{ url_for('change_ip') }}">
             <div class="form-group">
-                <label for="interface_name">Select Adapter:</label>
-                <select id="interface_name" name="interface_name" required>
-                    {% for interface in interfaces %}
-                        <option value="{{ interface }}">{{ interface }}</option>
+                <label for="interface_name">Select Interface:</label>
+                <select name="interface_name" id="interface_name" required>
+                    {% for interface, info in interfaces.items() %}
+                        <option value="{{ interface }}">{{ interface }} ({{ info.IP }})</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="form-group">
-                <label for="use_dhcp">Use DHCP:</label>
-                <select id="use_dhcp" name="use_dhcp" required>
-                    <option value="true">Yes</option>
-                    <option value="false">No</option>
-                </select>
+    
+            <div class="radio-group">
+                <label>
+                    <input type="radio" name="use_dhcp" value="true" checked> DHCP
+                </label>
+                <label>
+                    <input type="radio" name="use_dhcp" value="false"> Static IP
+                </label>
             </div>
-            <div class="form-group">
-                <label for="ip_address">IP Address:</label>
-                <input type="text" id="ip_address" name="ip_address" disabled>
+    
+            <div id="static_ip_fields" style="display: none;">
+                <div class="form-group">
+                    <label for="ip_address">IP Address:</label>
+                    <input type="text" name="ip_address" id="ip_address" pattern="^(\d{1,3}\.){3}\d{1,3}$">
+                </div>
+                <div class="form-group">
+                    <label for="subnet_mask">Subnet Mask:</label>
+                    <input type="text" name="subnet_mask" id="subnet_mask" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="gateway">Gateway (Optional):</label>
+                    <input type="text" name="gateway" id="gateway" pattern="^(\d{1,3}\.){3}\d{1,3}$">
+                </div>
             </div>
-            <div class="form-group">
-                <label for="subnet_mask">Subnet Mask:</label>
-                <input type="text" id="subnet_mask" name="subnet_mask" disabled>
-                <div class="helper-text">Leave empty for automatic subnet mask based on IP address</div>
-            </div>
-            <div class="form-group">
-                <label for="gateway">Gateway (Optional):</label>
-                <input type="text" id="gateway" name="gateway" disabled>
-            </div>
-            <button type="submit" class="submit-button">Change IP Configuration</button>
+    
+            <button type="submit" class="submit-button">Update IP Configuration</button>
         </form>
         <a href="{{ url_for('index') }}" class="back-link">Back to Summary</a>
     </div>
 
+    <!-- spinny loader hehe
+    <div class="loader-container">
+        <div class="loader"></div>
+        <div class="loader-message">Updating network configuration...</div>
+    </div> -->
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const useDhcpSelect = document.getElementById('use_dhcp');
-            const ipInput = document.getElementById('ip_address');
-            const subnetInput = document.getElementById('subnet_mask');
-            const gatewayInput = document.getElementById('gateway');
+    document.addEventListener('DOMContentLoaded', function() {
+        const dhcpRadios = document.querySelectorAll('input[name="use_dhcp"]');
+        const staticIpFields = document.getElementById('static_ip_fields');
+        const interfaceSelect = document.getElementById('interface_name');
+        const ipInput = document.getElementById('ip_address');
+        const subnetInput = document.getElementById('subnet_mask');
+        const gatewayInput = document.getElementById('gateway');
 
-            function toggleInputs() {
-                const isDHCP = useDhcpSelect.value === 'true';
-                ipInput.disabled = isDHCP;
-                subnetInput.disabled = isDHCP;
-                gatewayInput.disabled = isDHCP;
+        // Store current IP configuration when page loads
+        let currentConfig = {};
+        
+        // Parse the interface option to get current IP configuration
+        function updateCurrentConfig() {
+            const selectedOption = interfaceSelect.selectedOptions[0];
+            const optionText = selectedOption.text;
+            // Extract IP from format "interface_name (IP_ADDRESS)"
+            const ipMatch = optionText.match(/\((.*?)\)/);
+            if (ipMatch) {
+                currentConfig.ip = ipMatch[1];
+                // Calculate default subnet based on IP class
+                currentConfig.subnet = calculateSubnet(currentConfig.ip);
+                // Default gateway is first three octets of IP + .1
+                currentConfig.gateway = currentConfig.ip.split('.').slice(0, 3).join('.') + '.1';
+            }
+        }
 
-                // Clear and remove required when DHCP is enabled
-                if (isDHCP) {
-                    ipInput.value = '';
-                    subnetInput.value = '';
-                    gatewayInput.value = '';
-                    ipInput.required = false;
-                    subnetInput.required = false;
-                    gatewayInput.required = false;
-                } else {
-                    // Only make IP required when static
-                    ipInput.required = true;
-                }
+        // Calculate subnet mask based on IP class
+        function calculateSubnet(ip) {
+            const firstOctet = parseInt(ip.split('.')[0]);
+            if (firstOctet <= 127) return '255.0.0.0';      // Class A
+            if (firstOctet <= 191) return '255.255.0.0';    // Class B
+            if (firstOctet <= 223) return '255.255.255.0';  // Class C
+            return '255.255.255.0';  // Default to Class C for special cases
+        }
+
+        // Handle switching between DHCP and Static
+        function toggleInputs() {
+            const isDHCP = document.querySelector('input[name="use_dhcp"]:checked').value === 'true';
+            staticIpFields.style.display = isDHCP ? 'none' : 'block';
+
+            if (isDHCP) {
+                // Switching to DHCP - clear all fields
+                ipInput.value = '';
+                subnetInput.value = '';
+                gatewayInput.value = '';
+                ipInput.required = false;
+                subnetInput.required = false;
+                gatewayInput.required = false;
+            } else {
+                // Switching to Static - pre-fill with current configuration
+                ipInput.value = currentConfig.ip || '';
+                subnetInput.value = currentConfig.subnet || '';
+                gatewayInput.value = currentConfig.gateway || '';
+                ipInput.required = true;
+                subnetInput.required = true;
             }
 
-            useDhcpSelect.addEventListener('change', toggleInputs);
-            toggleInputs();  // Run on page load
+            // Enable/disable fields
+            ipInput.disabled = isDHCP;
+            subnetInput.disabled = true;  // Subnet is always auto-calculated
+            gatewayInput.disabled = isDHCP;
+        }
+
+        // Auto-calculate subnet when IP changes
+        ipInput.addEventListener('input', function() {
+            if (this.value) {
+                subnetInput.value = calculateSubnet(this.value);
+            }
         });
+
+        // Add change listeners
+        dhcpRadios.forEach(radio => {
+            radio.addEventListener('change', toggleInputs);
+        });
+
+        interfaceSelect.addEventListener('change', function() {
+            updateCurrentConfig();
+            toggleInputs();
+        });
+
+        // Initialize
+        updateCurrentConfig();
+        toggleInputs();
+
+        // Validate IP address format
+        function isValidIP(ip) {
+            const parts = ip.split('.');
+            if (parts.length !== 4) return false;
+            return parts.every(part => {
+                const num = parseInt(part);
+                return num >= 0 && num <= 255 && part === num.toString();
+            });
+        }
+
+        // // Form submission handler
+        // document.querySelector('form').addEventListener('submit', function(e) {
+        //     e.preventDefault();
+            
+        //     showLoader();  // Show the loading spinner
+            
+        //     fetch("{{ url_for('change_ip') }}", {
+        //         method: 'POST',
+        //         headers: {
+        //             'Content-Type': 'application/x-www-form-urlencoded',
+        //             'X-Requested-With': 'XMLHttpRequest'
+        //         },
+        //         body: new URLSearchParams(new FormData(this))
+        //     })
+        //     .then(response => response.json())
+        //     .then(data => {
+        //         if (data.success) {
+        //             // First, trigger a network check to update the cache
+        //             return fetch('/check_network', {
+        //                 headers: {
+        //                     'X-Requested-With': 'XMLHttpRequest'
+        //                 }
+        //             }).then(() => {
+        //                 // After the network check is complete:
+        //                 if (window.opener) {
+        //                     // If opened in a popup, notify parent and close
+        //                     window.opener.location.reload();
+        //                     window.close();
+        //                 } else {
+        //                     // If not in popup, redirect to main page
+        //                     window.location.href = '/';
+        //                 }
+        //             });
+        //         } else {
+        //             hideLoader();
+        //             alert('Error: ' + data.error);
+        //         }
+        //     })
+        //     .catch(error => {
+        //         hideLoader();
+        //         console.error('Error:', error);
+        //         alert('An error occurred while updating the network configuration');
+        //     });
+        // });
     </script>
 </body>
 </html>
