@@ -30,6 +30,7 @@ a = Analysis(
 
 pyz = PYZ(a.pure)
 
+import os
 exe = EXE(
     pyz,
     a.scripts,
@@ -47,5 +48,6 @@ exe = EXE(
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
-    entitlements_file=None
+    entitlements_file=None,
+    manifest='manifest.xml'  # Add this line
 )

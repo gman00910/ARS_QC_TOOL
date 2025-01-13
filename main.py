@@ -268,38 +268,78 @@ def change_ip():
         interfaces = {'IP Configuration': interfaces}  # Match the structure expected by the template
     return render_template('change_ip.html', interfaces=interfaces)
 
+# @app.route('/open_command_prompt')
+# def open_command_prompt():
+#    try:
+#        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
+       
+#        batch_content = f'''@echo off
+# title SHOTOVER Systems - Drive Summary Details
+# color 0A
+# cd /d "{os.path.dirname(script_path)}"
+# "{sys.executable}" "{script_path}"
+# echo.
+# pause >nul
+# '''
+       
+#        batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
+#        with open(batch_file, 'w') as f:
+#            f.write(batch_content)
+       
+#        # Launch with elevated privileges 
+#        ctypes.windll.shell32.ShellExecuteW(
+#            None,
+#            "runas",
+#            "cmd.exe",
+#            f"/c {batch_file}",
+#            None,
+#            1
+#        )
+       
+#        return "", 204
+#    except Exception as e:
+#        print(f"Error in open_command_prompt: {str(e)}")
+#        return str(e), 500
+
+
 @app.route('/open_command_prompt')
 def open_command_prompt():
-   try:
-       script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
-       
-       batch_content = f'''@echo off
+    try:
+        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'main_script.py')
+        
+        batch_content = f'''@echo off
 title SHOTOVER Systems - Drive Summary Details
 color 0A
 cd /d "{os.path.dirname(script_path)}"
 "{sys.executable}" "{script_path}"
 echo.
+echo Press any key to close this window...
 pause >nul
 '''
-       
-       batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
-       with open(batch_file, 'w') as f:
-           f.write(batch_content)
-       
-       # Launch with elevated privileges 
-       ctypes.windll.shell32.ShellExecuteW(
-           None,
-           "runas",
-           "cmd.exe",
-           f"/c {batch_file}",
-           None,
-           1
-       )
-       
-       return "", 204
-   except Exception as e:
-       print(f"Error in open_command_prompt: {str(e)}")
-       return str(e), 500
+        
+        batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
+        with open(batch_file, 'w') as f:
+            f.write(batch_content)
+        
+        # Launch with elevated privileges and WAIT
+        ctypes.windll.shell32.ShellExecuteW(
+            None,
+            "runas",
+            "cmd.exe",
+            f"/k {batch_file}",  # Changed from /c to /k to keep window open
+            None,
+            1
+        )
+        
+        return "", 204
+    except Exception as e:
+        print(f"Error in open_command_prompt: {str(e)}")
+        return str(e), 500
+    
+    
+    
+    
+    
 
 @app.route('/Openshell')
 def Openshell():
