@@ -1,15 +1,15 @@
 @echo off
 echo Cleaning up old builds...
-rmdir /s /q build
-rmdir /s /q dist
-del /f /q *.spec
+if exist build rmdir /s /q build
+if exist dist rmdir /s /q dist
 
 echo Installing required packages...
-pip install -r requirements.txt
-pip install pyinstaller
+python -m pip install --upgrade pip
+pip install --upgrade -r requirements.txt
+pip install --upgrade pyinstaller
 
 echo Building executable...
-pyinstaller --clean main.spec
+pyinstaller --clean shotover_qc_tool.spec
 
 echo Done!
 pause

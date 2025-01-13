@@ -1,8 +1,4 @@
 # -*- mode: python ; coding: utf-8 -*-
-import sys
-from PyInstaller.utils.hooks import collect_data_files
-
-block_cipher = None
 
 a = Analysis(
     ['main.py'],
@@ -21,38 +17,35 @@ a = Analysis(
         'winshell',
         'colorama',
         'psutil',
-        'pythoncom'
+        'pythoncom',
+        'win32com.shell',
+        'win32com.client'
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
-    a.zipfiles,
     a.datas,
     [],
-    name='ARS_QC_Checklist',
+    name='SHOTOVER_QC_TOOL',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,  # Set to True to see any potential errors
+    console=True,
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
-    entitlements_file=None,
-    icon='static/images/logo-shotover.png'  # Add your icon here if you have one
+    entitlements_file=None
 )

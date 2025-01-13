@@ -1,7 +1,7 @@
 tzlocal==5.2
 colorama==0.4.6
 psutil==5.9.8
-pywin32==306
-winshell==0.6
-Flask==3.0.2
-apscheduler==3.8.1
+Flask
+pywin32==308
+winshell
+pyinstaller
