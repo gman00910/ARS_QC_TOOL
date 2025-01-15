@@ -1,7 +1,6 @@
+flask==3.1.0
 tzlocal==5.2
 colorama==0.4.6
 psutil==5.9.8
-Flask
 pywin32==308
-winshell
-pyinstaller
+winshell==0.6

@@ -71,6 +71,29 @@
             align-items: center;
             gap: 5px;
         }
+        select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border-radius: 4px;
+        }
+        .submit-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .summary-button {
+            display: inline-block;
+            background-color: #008CBA;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -92,13 +115,15 @@
                 <button type="submit" class="submit-button">Update Time Zone</button>
             </form>
         {% endif %}
-        
-        <a href="{{ url_for('index') }}" class="back-link">Back to Summary</a>
+        <a href="{{ url_for('index') }}" class="summary-button">Back to Summary</a>
     </div>
 
     <script>
     document.getElementById('timezone-form').addEventListener('submit', function(e) {
         e.preventDefault();
+        const form = this;
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = true;  // Disable button to prevent double-clicks
         
         fetch(window.location.href, {
             method: 'POST',
@@ -111,25 +136,44 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Update the timezone section
-                fetch('/check_timezone', {
+                // Force cache clear and redirect
+                fetch('/clear_cache', {
+                    method: 'POST',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 })
-                .then(response => response.text())
-                .then(html => {
-                    window.opener.postMessage('timezone_updated', '*');
-                    window.close();
+                .then(() => {
+                    window.location.href = '/';  // Always redirect to home
+                })
+                .catch(error => {
+                    console.error('Error clearing cache:', error);
+                    window.location.href = '/';  // Redirect anyway
                 });
             } else {
-                alert('Error: ' + data.error);
+                alert('Error: ' + (data.error || 'Unknown error occurred'));
+                submitButton.disabled = false;
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('An error occurred');
+            alert('An error occurred while updating the timezone');
+            submitButton.disabled = false;
         });
+    });
+    // Add to your existing JavaScript
+    function showLoading() {
+        document.getElementById('loadingOverlay').style.display = 'block';
+    }
+
+    function hideLoading() {
+        document.getElementById('loadingOverlay').style.display = 'none';
+    }
+
+    document.getElementById('timezone-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        showLoading();
+        // ... rest of your submit handler ...
     });
     </script>
 </body>

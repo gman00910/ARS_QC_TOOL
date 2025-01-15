@@ -425,11 +425,13 @@
         <div class="summary-text">
             <div class="divider"></div>
             <strong>Time Zone:</strong>
-            <div class="timezone-section">  <!-- Add this wrapper -->
+            <div class="timezone-section">
                 <div class="status-label" style="text-align: center;">
                     {{ result.get('Time Zone', 'N/A') }}
                     <div style="margin-top: 10px;">
-                        <a href="{{ url_for('change_setting', setting='time_zone') }}" class="summary-button compact">Change Time Zone (works, doesnt update)</a>
+                        <a href="{{ url_for('change_setting', setting='time_zone') }}" 
+                           class="summary-button compact" 
+                           onclick="clearCacheBeforeChange(event)">Change Time Zone</a>
                     </div>
                 </div>
             </div>
@@ -618,6 +620,18 @@
     </div>
 
     <script>
+        function refreshIPData() {
+            fetch('/refresh_ip', {
+                method: 'POST',
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
         function launchProgram(url) {
             fetch(url, {
                 method: 'POST',
@@ -724,6 +738,17 @@
         });
 
     </script>
+    function clearCacheBeforeChange(event) {
+        event.preventDefault();
+        fetch('/clear_cache', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(() => {
+            window.location.href = event.target.href;
+        });
+    }
     <!-- <script>
     // Improved loader script
     document.addEventListener('DOMContentLoaded', function() {

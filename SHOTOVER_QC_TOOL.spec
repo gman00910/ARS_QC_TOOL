@@ -1,12 +1,21 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+block_cipher = None
+
+added_files = [
+    ('main_script.py', '.'),
+    ('templates', 'templates'),
+    ('static', 'static')
+]
+
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=[
+        ('main_script.py', '.'),
         ('templates', 'templates'),
-        ('static', 'static')
+        ('static', 'static'),
     ],
     hiddenimports=[
         'flask',
@@ -19,22 +28,32 @@ a = Analysis(
         'psutil',
         'pythoncom',
         'win32com.shell',
-        'win32com.client'
+        'win32com.client',
+        'subprocess',
+        'webbrowser',
+        'main_script',
+        'sys',  
+        'os',
+        'datetime',
+        'threading'
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
     noarchive=False
 )
 
-pyz = PYZ(a.pure)
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-import os
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
+    a.zipfiles,
     a.datas,
     [],
     name='SHOTOVER_QC_TOOL',
@@ -46,8 +65,9 @@ exe = EXE(
     runtime_tmpdir=None,
     console=True,
     disable_windowed_traceback=False,
+    argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    manifest='manifest.xml'  # Add this line
+    uac_admin=True
 )
