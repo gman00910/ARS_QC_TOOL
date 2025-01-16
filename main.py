@@ -159,6 +159,7 @@ def get_cached_system_info():
         'Windows Defender Status': main_script.windows_defender_status(),
         'Firewall Status': main_script.check_firewall_status(),
         'Defrag Status': main_script.check_defrag_settings(),
+        'Time Zone': main_script.get_time_zone(),
         'Drive Health': main_script.quick_drive_check(),
         'Windows Update': main_script.is_windows_update_enabled(),
         'Windows Notifications': main_script.check_notification_settings()
@@ -185,7 +186,7 @@ def index():
         #     del cache[cache_key]
         
         # Get fresh timezone data
-        current_timezone = main_script.get_time_zone()
+       # current_timezone = main_script.get_time_zone()
         
         # Get cached data
         cached_info = get_cached_system_info()
@@ -197,7 +198,7 @@ def index():
             'Windows Activation': cached_info['Windows Activation'],
             'Task Scheduler Status': cached_info['Task Scheduler Status'],
             'IP Configuration': cached_info['IP Configuration'],
-            'Time Zone': current_timezone,  # Use fresh timezone here
+            'Time Zone': cached_info['Time Zone'], 
             'Display Info': cached_info['Display Info'],
             'ARS Version': cached_info['ARS Version'],
             'Boot Drive Version': cached_info['Boot Drive Version'],
@@ -223,36 +224,36 @@ def index():
 
 
 
-@app.route('/change/<setting>', methods=['GET', 'POST'])
-def change_setting(setting):
-    try:
-        if request.method == 'POST':
-            if setting == 'time_zone':
-                new_timezone = request.form.get('new_value')
-                result = main_script.change_time_zone(new_timezone)
+# @app.route('/change/<setting>', methods=['GET', 'POST'])
+# def change_setting(setting):
+#     try:
+#         if request.method == 'POST':
+#             if setting == 'time_zone':
+#                 new_timezone = request.form.get('new_value')
+#                 result = main_script.change_time_zone(new_timezone)
                 
-                # Force clear all caches
-                clear_system_info_cache()
-                get_cached_system_info.cache_clear()
+#                 # Force clear all caches
+#                 clear_system_info_cache()
+#                 get_cached_system_info.cache_clear()
                 
-                # Clear Flask cache
-                for key in list(cache.keys()):
-                    del cache[key]
+#                 # Clear Flask cache
+#                 for key in list(cache.keys()):
+#                     del cache[key]
                 
-                # Get fresh timezone
-                current_timezone = main_script.get_time_zone()
+#                 # Get fresh timezone
+#                 current_timezone = main_script.get_time_zone()
                 
-                return jsonify({
-                    'success': True,
-                    'message': result,
-                    'newTimezone': current_timezone
-                })
+#                 return jsonify({
+#                     'success': True,
+#                     'message': result,
+#                     'newTimezone': current_timezone
+#                 })
         
-        if setting == 'time_zone':
-            timezones = main_script.get_available_timezones()
-            return render_template('change_setting.html', setting=setting, timezones=timezones)
+#         if setting == 'time_zone':
+#             timezones = main_script.get_available_timezones()
+#             return render_template('change_setting.html', setting=setting, timezones=timezones)
         
-        return jsonify({'success': False, 'error': 'Setting not supported'}), 400
+#         return jsonify({'success': False, 'error': 'Setting not supported'}), 400
         
     except Exception as e:
         print(f"Error in change_setting route: {str(e)}")
@@ -327,39 +328,6 @@ def refresh_ip():
         return jsonify({"success": False, "error": str(e)})
 
 
-@app.route('/open_command_prompt')
-def open_command_prompt():
-    try:
-        if getattr(sys, 'frozen', False):
-            base_path = sys._MEIPASS
-            script_content = '''@echo off
-title SHOTOVER Systems - Drive Summary Details
-color 0A
-python -c "import sys; sys.path.insert(0, r'{}'); import main_script; main_script.print_summary()"
-echo.
-pause >nul
-'''.format(base_path)
-        else:
-            script_content = '''@echo off
-title SHOTOVER Systems - Drive Summary Details
-color 0A
-"{}" -c "import main_script; main_script.print_summary()"
-echo.
-pause >nul
-'''.format(sys.executable)
-
-        batch_file = os.path.join(os.environ['TEMP'], 'shotover_summary.bat')
-        with open(batch_file, 'w') as f:
-            f.write(script_content)
-            
-        subprocess.Popen(['cmd.exe', '/k', batch_file], 
-                        creationflags=subprocess.CREATE_NEW_CONSOLE)
-        return "", 204
-    except Exception as e:
-        print(f"Error in open_command_prompt: {str(e)}")
-        return str(e), 500
-
-    
 @app.route('/clear_cache', methods=['POST'])
 def clear_cache():
     try:
@@ -374,6 +342,9 @@ def clear_cache():
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
+    
+    
+    
     
 @app.route('/Openshell')
 def Openshell():
@@ -555,17 +526,7 @@ def format_system_info_for_print(cached_info):
  ___) | |  __  | | |_| |   | |    | |_| |   \ V /   | |___  |  _ <  
 |____/  |_|  |_|  \___/    |_|     \___/     \_/    |_____| |_| \_\ 
 
-                ///////////             ///////////           
-                //////////////          //////////////         
-                    /////////               ////////            
-
-        ////                                              //// 
-          ////                                         ////    
-             ////                                   ////       
-                ////                             ////          
-                   ////                       ////             
-                       ////                ////                 
-                          ////////////////                     """.strip())
+                                                              """.strip())
     output.append(f"{Style.RESET_ALL}\n")
 
     # Join all lines and apply HTML color formatting
@@ -577,162 +538,7 @@ def format_system_info_for_print(cached_info):
         .replace(f"{Fore.YELLOW}", '<span class="yellow">')
         .replace(f"{Style.RESET_ALL}", '</span>')
     )
-    
-    
-    
-    
-# def format_system_info_for_print(cached_info):
-#     """Format cached system info for print view"""
-#     # Convert cached_info to immutable format for caching
-#     cache_key = frozenset(cached_info.items())
-    
-#     output = []
-#     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
-#     # Time Header
-#     output.append(f"\n\n{Fore.CYAN}Time: {current_time}{Style.RESET_ALL}")
-    
-#     # System Information
-#     output.append(f"\n{Fore.GREEN}{'='*20} SYSTEM INFORMATION {'='*20}{Style.RESET_ALL}\n")
-#     output.append(f"{Fore.CYAN}Computer Name:{Style.RESET_ALL} {cached_info['Computer Name']}")
-#     output.append(f"{Fore.CYAN}Windows Activation:{Style.RESET_ALL} {cached_info['Windows Activation']}")
-#     output.append(f"{Fore.CYAN}Time Zone:{Style.RESET_ALL} {cached_info.get('Time Zone', 'N/A')}")
-    
-#     # Display Info
-#     display_info = cached_info['Display Info']
-#     display_lines = display_info.split('\n') if isinstance(display_info, str) else []
-#     for line in display_lines:
-#         if any(key in line for key in ['Display Info:', 'Name:', 'Resolution:', 'Refresh rate:']):
-#             label = line.split(':')[0] + ':'
-#             value = ':'.join(line.split(':')[1:])
-#             output.append(f"{Fore.CYAN}{label}{Style.RESET_ALL}{value}")
-#         else:
-#             output.append(line)
 
-#     # Network Configuration
-#     output.append(f"\n{Fore.GREEN}{'='*20} NETWORK CONFIGURATION {'='*20}{Style.RESET_ALL}")
-#     dhcp_status = cached_info['IP Configuration']
-#     network_profiles = cached_info['Network Profile']
-
-#     if isinstance(dhcp_status, dict):
-#         for interface, info in dhcp_status.items():
-#             output.append(f"\n{Fore.CYAN}{interface}:{Style.RESET_ALL}")
-#             type_str = info.get('Type', 'N/A')
-#             if isinstance(network_profiles, dict):
-#                 for profile_name, category in network_profiles.items():
-#                     if profile_name in interface:
-#                         type_str += f" (Category: {category})"
-#             output.append(f"  {Fore.CYAN}Type:{Style.RESET_ALL} {type_str}")
-#             output.append(f"  {Fore.CYAN}DNS Suffix:{Style.RESET_ALL} {info.get('DNS Suffix', 'N/A')}")
-#             output.append(f"  {Fore.CYAN}DHCP:{Style.RESET_ALL} {info.get('DHCP', 'N/A')}")
-#             output.append(f"  {Fore.CYAN}IP:{Style.RESET_ALL} {info.get('IP', 'N/A')}")
-#             output.append(f"  {Fore.CYAN}Subnet Mask:{Style.RESET_ALL} {info.get('Subnet Mask', 'N/A')}")
-#             output.append(f"  {Fore.CYAN}Gateway:{Style.RESET_ALL} {info.get('Gateway', 'N/A')}")
-
-#     # Versions
-#     output.append(f"\n{Fore.GREEN}{'='*20} VERSIONS {'='*20}{Style.RESET_ALL}\n")
-#     output.append(f"{Fore.CYAN}ARS Version:{Style.RESET_ALL} {cached_info['ARS Version']}")
-#     output.append(f"{Fore.CYAN}ARS Shortcut:{Style.RESET_ALL} {cached_info['ARS Shortcut']}")
-#     output.append(f"{Fore.CYAN}Boot Version:{Style.RESET_ALL} {cached_info['Boot Drive Version']}")
-#     output.append(f"{Fore.CYAN}VIB Version:{Style.RESET_ALL} {cached_info['VIB Version']}")
-#     output.append(f"{Fore.CYAN}FX3 Version:{Style.RESET_ALL} {cached_info['FX3 Version']}")
-
-#     # System Status
-#     output.append(f"\n{Fore.GREEN}{'='*20} SYSTEM STATUS {'='*20}{Style.RESET_ALL}\n")
-
-#     # Computer Metrics
-#     metrics = cached_info['Computer Metrics']
-#     output.append(f"{Fore.CYAN}Computer Metrics:{Style.RESET_ALL}")
-#     output.append(f"    CPU: {metrics['CPU']}")
-#     output.append(f"    RAM: {metrics['RAM']}")
-#     output.append(f"    Physical Memory: {metrics['Physical Memory']}")
-#     output.append(f"    Virtual Memory: {metrics['Virtual Memory']}")
-
-#     # Windows Defender
-#     defender = cached_info['Windows Defender Status']
-#     output.append(f"\n{Fore.CYAN}Windows Defender:{Style.RESET_ALL}")
-#     for key, value in defender.items():
-#         color = Fore.GREEN if value == 'ON' else Fore.RED
-#         output.append(f"    {key}: {color}{value}{Style.RESET_ALL}")
-
-#     # Firewall Status
-#     firewall = cached_info['Firewall Status']
-#     output.append(f"\n{Fore.CYAN}Firewall Status:{Style.RESET_ALL}")
-#     for profile, status in firewall.items():
-#         color = Fore.GREEN if status == 'ON' else Fore.RED
-#         output.append(f"    {profile}: {color}{status}{Style.RESET_ALL}")
-
-#     # Defrag Status
-#     defrag = cached_info['Defrag Status']
-#     output.append(f"\n{Fore.CYAN}Defrag Status:{Style.RESET_ALL}")
-#     output.append(f"    C Drive: {Fore.GREEN if defrag['C_Drive'] == 'Enabled' else Fore.RED}{defrag['C_Drive']}{Style.RESET_ALL}")
-#     output.append(f"    D Drive: {Fore.GREEN if defrag['D_Drive'] == 'Enabled' else Fore.RED}{defrag['D_Drive']}{Style.RESET_ALL}")
-
-#     # Drive Health
-#     drives = cached_info['Drive Health']
-#     output.append(f"\n{Fore.CYAN}Drive Health:{Style.RESET_ALL}")
-#     for drive, info in drives.items():
-#         output.append(f"    {Fore.CYAN}{drive}:{Style.RESET_ALL}")
-#         color = Fore.GREEN if info['Status'] == 'Healthy' else Fore.RED
-#         output.append(f"       Status: {color}{info['Status']}{Style.RESET_ALL}")
-#         output.append(f"       Usage: {info['Usage']}")
-#         output.append(f"       Space: {info['Space']}")
-
-#     # Windows Update and Notifications
-#     update_status = cached_info['Windows Update']
-#     output.append(f"\n  {Fore.CYAN}Windows Update:{Style.RESET_ALL} {Fore.GREEN if update_status == 'Enabled' else Fore.RED}{update_status}{Style.RESET_ALL}")
-    
-#     notif_status = cached_info['Windows Notifications']
-#     output.append(f"\n  {Fore.CYAN}Windows Notifications:{Style.RESET_ALL} {Fore.GREEN if notif_status == 'Enabled' else Fore.RED}{notif_status}{Style.RESET_ALL}")
-
-#     # Task Scheduler
-#     output.append(f"\n{Fore.GREEN}{'='*20} TASK SCHEDULER {'='*20}{Style.RESET_ALL}")
-#     tasks = cached_info['Task Scheduler Status']
-#     if tasks:
-#         for task in tasks:
-#             if ':' in task:
-#                 output.append(f"{Fore.CYAN}{task}{Style.RESET_ALL}")
-#             else:
-#                 output.append(task)
-
-#     # COM Ports
-#     output.append(f"\n{Fore.GREEN}{'='*20} COM PORTS {'='*20}{Style.RESET_ALL}")
-#     output.append(f"{Fore.CYAN}Name                     Status   Service{Style.RESET_ALL}")
-#     output.append("----                     ------   -------")
-#     output.append(cached_info['COM Ports'])
-
-#     # SHOTOVER Logo
-#     output.append(f"{Fore.CYAN}")
-#     output.append(r"""
-#  ____    _    _    ___    _____     ___   __     __  _____   ____   
-# / ___|  | |  | |  / _ \  |_   _|   / _ \  \ \   / / | ____| |  _ \  
-# \___ \  | |__| | | | | |   | |    | | | |  \ \ / /  |  _|   | |_) | 
-#  ___) | |  __  | | |_| |   | |    | |_| |   \ V /   | |___  |  _ <  
-# |____/  |_|  |_|  \___/    |_|     \___/     \_/    |_____| |_| \_\ 
-
-#                 ///////////             ///////////           
-#                 //////////////          //////////////         
-#                     /////////               ////////            
-
-#         ////                                              //// 
-#           ////                                         ////    
-#              ////                                   ////       
-#                 ////                             ////          
-#                    ////                       ////             
-#                        ////                ////                 
-#                           ////////////////                     """.strip())
-#     output.append(f"{Style.RESET_ALL}\n")
-
-#     # Join all lines and apply HTML color formatting
-#     output_str = "\n".join(output)
-#     return (output_str
-#         .replace(f"{Fore.CYAN}", '<span class="cyan">')
-#         .replace(f"{Fore.GREEN}", '<span class="green">')
-#         .replace(f"{Fore.RED}", '<span class="red">')
-#         .replace(f"{Fore.YELLOW}", '<span class="yellow">')
-#         .replace(f"{Style.RESET_ALL}", '</span>')
-#     )
-    
     
     
 @app.route('/run_ars', methods=['POST'])
