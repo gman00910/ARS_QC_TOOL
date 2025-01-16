@@ -827,37 +827,47 @@ def get_network_profile():
         return {"Error": f"Failed to get network profile: {str(e)}"}
 
 def is_windows_update_enabled():
-    ps_command = "Get-Service -Name wuauserv | Select-Object -ExpandProperty Status"
-    result = subprocess.run(
-        ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_command],
-        capture_output=True,
-        text=True
-    )
-    if result.returncode == 0:
-        status = result.stdout.strip()
-        if status == "Running":
+    try:
+        ps_command = "Get-Service wuauserv | Select-Object -ExpandProperty Status"
+        result = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_command],
+            capture_output=True,
+            text=True,
+            timeout=10  # Add timeout to prevent hanging
+        )
+        status = result.stdout.strip().lower()
+        if "running" in status:
             return "Enabled"
-        elif status == "Stopped":
+        elif "stopped" in status:
             return "Disabled"
-        else:
-            return f"Unknown status: {status}"
-    else:
-        return f"Error checking Windows Update status: {result.stderr}"
+        return f"Unknown status: {status}"
+    except subprocess.TimeoutExpired:
+        return "Check timed out"
+    except Exception as e:
+        return "Disabled"  # Fallback to disabled if we can't check
+    
     
 def check_notification_settings():
     try:
-        ps_command = r'''
-        $notificationSettings = Get-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\PushNotifications" -ErrorAction SilentlyContinue
-        if ($notificationSettings.ToastEnabled -eq 1) { "Enabled" } else { "Disabled" }
+        ps_command = '''
+        $path = "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\PushNotifications"
+        if (Test-Path $path) {
+            $settings = Get-ItemProperty -Path $path -ErrorAction Stop
+            if ($settings.ToastEnabled -eq 1) { "Enabled" } else { "Disabled" }
+        } else {
+            "Disabled"
+        }
         '''
-        result = subprocess.run(['powershell', '-Command', ps_command], 
-                              capture_output=True, 
-                              text=True)
-        return result.stdout.strip()
-    except Exception as e:
-        print(f"Error checking notification settings: {str(e)}")
+        result = subprocess.run(
+            ['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', ps_command],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        output = result.stdout.strip()
+        return output if output else "Disabled"
+    except Exception:
         return "Disabled"
-    
     
     
     

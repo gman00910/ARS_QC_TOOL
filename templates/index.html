@@ -619,177 +619,111 @@
     </div>
 
     <script>
-        function refreshIPData() {
-            fetch('/refresh_ip', {
-                method: 'POST',
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                }
-            })
-            .catch(error => console.error('Error:', error));
-        }
-        function launchProgram(url) {
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (!data.success) {
-                    console.error('Failed to launch program:', data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
-        }
-    </script>
+    // function refreshIPData() {
+    //     fetch('/refresh_ip', {
+    //         method: 'POST',
+    //     })
+    //     .then(response => response.json())
+    //     .then(data => {
+    //         if (data.success) {
+    //             location.reload();
+    //         }
+    //     })
+    //     .catch(error => console.error('Error:', error));
+    // }
 
-    <script>
-        window.addEventListener('message', function(event) {
-            if (event.data === 'timezone_updated' || event.data === 'network_updated') {
-                // Only refresh the sections that changed
-                if (event.data === 'timezone_updated') {
-                    fetch('/check_timezone', {
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    })
-                    .then(response => response.text())
-                    .then(html => {
-                        document.querySelector('.timezone-section').innerHTML = html;
-                    });
-                }
-                
-                if (event.data === 'network_updated') {
-                    fetch('/check_network', {
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    })
-                    .then(response => response.text())
-                    .then(html => {
-                        document.querySelector('.network-section').innerHTML = html;
-                    });
-                }
-            }
-        });
-        function refreshNetworkSection() {
-            fetch('/check_network', {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.text())
-            .then(html => {
-                document.querySelector('.network-section').innerHTML = html;
-            });
-        }
-
-
-        // After IP change submission
-        document.addEventListener('DOMContentLoaded', function() {
-            const ipForms = document.querySelectorAll('a[href*="change_ip"]');
-            ipForms.forEach(form => {
-                form.addEventListener('click', function(e) {
-                    setTimeout(refreshNetworkSection, 2000);
-                });
-            });
-        });
-
-        function refreshTimezoneSection() {
-            fetch('/check_timezone', {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.text())
-            .then(html => {
-                document.querySelector('.timezone-section').innerHTML = html;
-            })
-            .catch(error => {
-                console.error('Error refreshing timezone section:', error);
-            });
-        }
-
-        // Update your DOMContentLoaded event listener
-        document.addEventListener('DOMContentLoaded', function() {
-            // Your existing IP forms code
-            const ipForms = document.querySelectorAll('a[href*="change_ip"]');
-            ipForms.forEach(form => {
-                form.addEventListener('click', function(e) {
-                    setTimeout(refreshNetworkSection, 2000);
-                });
-            });
-
-            // Add timezone form handling
-            const timezoneForm = document.querySelector('form');
-            if (timezoneForm) {
-                timezoneForm.addEventListener('submit', function(e) {
-                    setTimeout(refreshTimezoneSection, 2000);
-                });
-            }
-        });
-
-    </script>
-    function clearCacheBeforeChange(event) {
-        event.preventDefault();
-        fetch('/clear_cache', {
+    function launchProgram(url) {
+        fetch(url, {
             method: 'POST',
             headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+                'Content-Type': 'application/json',
             }
-        }).then(() => {
-            window.location.href = event.target.href;
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                console.error('Failed to launch program:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
         });
     }
-    <!-- <script>
-    // Improved loader script
-    document.addEventListener('DOMContentLoaded', function() {
-        const loader = document.getElementById('main-loader');
-        
-        // Function to hide loader
-        function hideLoader() {
-            if (loader) {
-                loader.classList.add('hidden');
-                
-                // Completely remove the loader after transition
-                setTimeout(() => {
-                    loader.style.display = 'none';
-                }, 500);
-            }
-        }
 
-        // Try multiple methods to ensure loader is hidden
-        window.addEventListener('load', hideLoader);
-        
-        // Fallback methods
-        setTimeout(hideLoader, 5000); // Force hide after 5 seconds
-        
-        // Additional check for fully loaded resources
-        if (document.readyState === 'complete') {
-            hideLoader();
-        } else {
-            window.addEventListener('loadstart', hideLoader);
-            window.addEventListener('complete', hideLoader);
-        }
-    });
+    // window.addEventListener('message', function(event) {
+    //     if (event.data === 'timezone_updated' || event.data === 'network_updated') {
+    //         // Only refresh the sections that changed
+    //         if (event.data === 'timezone_updated') {
+    //             fetch('/check_timezone', {
+    //                 headers: {
+    //                     'X-Requested-With': 'XMLHttpRequest'
+    //                 }
+    //             })
+    //             .then(response => response.text())
+    //             .then(html => {
+    //                 document.querySelector('.timezone-section').innerHTML = html;
+    //             });
+    //         }
+            
+    //         if (event.data === 'network_updated') {
+    //             fetch('/check_network', {
+    //                 headers: {
+    //                     'X-Requested-With': 'XMLHttpRequest'
+    //                 }
+    //             })
+    //             .then(response => response.text())
+    //             .then(html => {
+    //                 document.querySelector('.network-section').innerHTML = html;
+    //             });
+    //         }
+    //     }
+    // });
 
-    // For network updates (keep existing network update logic)
-    window.addEventListener('message', function(event) {
-        if (event.data === 'network_updated') {
-            const loader = document.getElementById('main-loader');
-            loader.classList.remove('hidden');
-            setTimeout(() => {
-                location.reload();
-            }, 500);
-        }
-    });
-    </script> -->
+    // function refreshNetworkSection() {
+    //     fetch('/check_network', {
+    //         headers: {
+    //             'X-Requested-With': 'XMLHttpRequest'
+    //         }
+    //     })
+    //     .then(response => response.text())
+    //     .then(html => {
+    //         document.querySelector('.network-section').innerHTML = html;
+    //     });
+    // }
+
+    // // DOMContentLoaded event listener
+    // document.addEventListener('DOMContentLoaded', function() {
+    //     // IP forms code
+    //     const ipForms = document.querySelectorAll('a[href*="change_ip"]');
+    //     ipForms.forEach(form => {
+    //         form.addEventListener('click', function(e) {
+    //             setTimeout(refreshNetworkSection, 2000);
+    //         });
+    //     });
+
+    //     // Timezone form handling
+    //     const timezoneForm = document.querySelector('form');
+    //     if (timezoneForm) {
+    //         timezoneForm.addEventListener('submit', function(e) {
+    //             setTimeout(refreshTimezoneSection, 2000);
+    //         });
+    //     }
+    // });
+
+    // function refreshTimezoneSection() {
+    //     fetch('/check_timezone', {
+    //         headers: {
+    //             'X-Requested-With': 'XMLHttpRequest'
+    //         }
+    //     })
+    //     .then(response => response.text())
+    //     .then(html => {
+    //         document.querySelector('.timezone-section').innerHTML = html;
+    //     })
+    //     .catch(error => {
+    //         console.error('Error refreshing timezone section:', error);
+    //     });
+    // }
+</script>
 </body>
 </html>

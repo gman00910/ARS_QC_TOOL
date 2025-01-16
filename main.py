@@ -346,10 +346,43 @@ def clear_cache():
     
     
     
+# @app.route('/Openshell')
+# def Openshell():
+#     try:
+#         if getattr(sys, 'frozen', False):
+#             base_path = sys._MEIPASS
+#             ps_content = '''
+# $Host.UI.RawUI.WindowTitle = "SHOTOVER Systems - Drive Summary Details"
+# python -c "import sys; sys.path.insert(0, r'{}'); import main_script; main_script.print_summary()"
+# Write-Host "`nPress any key to continue..."
+# $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+# '''.format(base_path)
+#         else:
+#             ps_content = '''
+# $Host.UI.RawUI.WindowTitle = "SHOTOVER Systems - Drive Summary Details"
+# & "{}" -c "import main_script; main_script.print_summary()"
+# Write-Host "`nPress any key to continue..."
+# $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+# '''.format(sys.executable)
+
+#         ps_file = os.path.join(os.environ['TEMP'], 'shotover_summary.ps1')
+#         with open(ps_file, 'w') as f:
+#             f.write(ps_content)
+        
+#         subprocess.Popen(
+#             ['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ps_file],
+#             creationflags=subprocess.CREATE_NEW_CONSOLE
+#         )
+#         return "", 204
+#     except Exception as e:
+#         print(f"Error in Openshell: {str(e)}")
+#         return str(e), 500
+    
 @app.route('/Openshell')
 def Openshell():
     try:
         if getattr(sys, 'frozen', False):
+            # Running in PyInstaller bundle
             base_path = sys._MEIPASS
             ps_content = '''
 $Host.UI.RawUI.WindowTitle = "SHOTOVER Systems - Drive Summary Details"
@@ -358,6 +391,7 @@ Write-Host "`nPress any key to continue..."
 $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 '''.format(base_path)
         else:
+            # Running in normal Python environment
             ps_content = '''
 $Host.UI.RawUI.WindowTitle = "SHOTOVER Systems - Drive Summary Details"
 & "{}" -c "import main_script; main_script.print_summary()"
@@ -365,10 +399,12 @@ Write-Host "`nPress any key to continue..."
 $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 '''.format(sys.executable)
 
+        # Create and write the PowerShell script
         ps_file = os.path.join(os.environ['TEMP'], 'shotover_summary.ps1')
         with open(ps_file, 'w') as f:
             f.write(ps_content)
         
+        # Run it in a new window
         subprocess.Popen(
             ['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ps_file],
             creationflags=subprocess.CREATE_NEW_CONSOLE
@@ -378,7 +414,15 @@ $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
         print(f"Error in Openshell: {str(e)}")
         return str(e), 500
     
-    
+# @app.route('/Openshell')
+# def Openshell():
+#     try:
+#         subprocess.Popen([sys.executable, '-c', 'import main_script; main_script.print_summary()'],
+#                         creationflags=subprocess.CREATE_NEW_CONSOLE)
+#         return "", 204
+#     except Exception as e:
+#         print(f"Error in Openshell: {str(e)}")
+#         return str(e), 500
 
 @app.route('/printt')
 def printt():
